@@ -1,0 +1,50 @@
+package com.example.shade.bot;
+
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.bots.AbsSender;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+@Component
+@RequiredArgsConstructor
+public class AdminTelegramMessageSender {
+    private static final Logger logger = LoggerFactory.getLogger(AdminTelegramMessageSender.class);
+    private AbsSender bot;
+
+    public void setBot(AbsSender bot) {
+        this.bot = bot;
+    }
+
+    public void sendMessage(Long chatId, String text) {
+        if (bot == null) {
+            logger.error("Bot not set for TelegramMessageSender for chatId: {}", chatId);
+            return;
+        }
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId.toString());
+        message.setText(text);
+        try {
+            bot.execute(message);
+            logger.info("Sent message to chatId {}: {}", chatId, text);
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send message to chatId {}: {}", chatId, e.getMessage());
+        }
+    }
+
+    public void sendPhoto(SendPhoto sendPhoto, Long chatId) {
+        if (bot == null) {
+            logger.error("Bot not set for TelegramMessageSender for chatId: {}", chatId);
+            return;
+        }
+        try {
+            bot.execute(sendPhoto);
+            logger.info("Sent photo to chatId {} with caption: {}", chatId, sendPhoto.getCaption());
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send photo to chatId {}: {}", chatId, e.getMessage());
+        }
+    }
+}
