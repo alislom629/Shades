@@ -1,7 +1,7 @@
-package com.example.shade.repository;/**
- * Date-7/7/2025
- * By Sardor Tokhirov
- * Time-11:55 PM (GMT+5)
- */
-public class LoginEventRepository {
+package com.example.shade.repository;
+
+import com.example.shade.model.LoginEvent;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface LoginEventRepository extends JpaRepository<LoginEvent, Long> {
 }

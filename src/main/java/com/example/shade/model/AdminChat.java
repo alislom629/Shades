@@ -1,7 +1,20 @@
-package com.example.shade.model;/**
- * Date-7/8/2025
- * By Sardor Tokhirov
- * Time-8:28 PM (GMT+5)
- */
+package com.example.shade.model;
+
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdminChat {
+    @Id
+    private Long chatId;
+    private boolean receiveNotifications;
 }

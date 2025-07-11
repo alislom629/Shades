@@ -1,27 +1,58 @@
-package com.example.shade;
+package com.example.shade.bot;
 
+import com.example.shade.model.Referral;
+import com.example.shade.repository.ReferralRepository;
+import com.example.shade.service.*;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class ShadePaymentBot extends TelegramLongPollingBot {
+    private static final Logger logger = LoggerFactory.getLogger(ShadePaymentBot.class);
+    private final TopUpService topUpService;
+    private final WithdrawService withdrawService;
+    private final BonusService bonusService;
+    private final ContactService contactService;
+    private final ReferralRepository referralRepository;
+    private final MessageSender messageSender;
+    private final UserSessionService sessionService;
 
     @Value("${telegram.bot.token}")
     private String botToken;
 
     @Value("${telegram.bot.username}")
     private String botUsername;
+
+    @PostConstruct
+    public void init() {
+        messageSender.setBot(this);
+        clearWebhook();
+    }
+
+    @PostConstruct
+    public void clearWebhook() {
+        try {
+            execute(new DeleteWebhook());
+            logger.info("Webhook cleared for {}", botUsername);
+        } catch (TelegramApiException e) {
+            logger.error("Error clearing webhook for {}: {}", botUsername, e.getMessage());
+        }
+    }
 
     @Override
     public String getBotUsername() {
@@ -30,95 +61,161 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
+        if (botToken == null || botToken.isEmpty()) {
+            logger.error("Bot token not set in application.properties");
+            throw new IllegalStateException("Bot token is missing");
+        }
         return botToken;
     }
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            Long chatId = update.getMessage().getChatId();
-
-            if (messageText.equals("/start")) {
-                sendWelcomeMessage(chatId);
+        try {
+            if (update == null) {
+                logger.warn("Received null update");
+                return;
             }
-        } else if (update.hasCallbackQuery()) {
-            String callbackData = update.getCallbackQuery().getData();
-            Long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-            handleCallback(chatId, callbackData);
+            if (update.hasMessage() && update.getMessage().hasText()) {
+                handleTextMessage(update.getMessage().getText(), update.getMessage().getChatId());
+            } else if (update.hasCallbackQuery()) {
+                handleCallbackQuery(update.getCallbackQuery().getData(), update.getCallbackQuery().getMessage().getChatId());
+            }
+        } catch (Exception e) {
+            logger.error("Error processing update: {}", update, e);
         }
     }
 
-    private void sendWelcomeMessage(Long chatId) {
-        String messageText = "Assalomu alaykum! Quyidagi tugmalar orqali kerakli bo‘limni tanlang 👇";
+    private void handleTextMessage(String messageText, Long chatId) {
+        logger.info("Processing message from chatId {}: {}", chatId, messageText);
+        String state = sessionService.getUserState(chatId);
+        if (messageText.startsWith("/start")) {
+            if (messageText.startsWith("/start ref_")) {
+                String referrerIdStr = messageText.substring("/start ref_".length());
+                try {
+                    Long referrerChatId = Long.parseLong(referrerIdStr);
+                    if (!referrerChatId.equals(chatId)) { // Prevent self-referral
+                        if (referralRepository.findByReferredChatId(chatId).isEmpty()) {
+                            Referral referral = new Referral();
+                            referral.setReferrerChatId(referrerChatId);
+                            referral.setReferredChatId(chatId);
+                            referralRepository.save(referral);
+                            logger.info("Referral created: referrerChatId={}, referredChatId={}", referrerChatId, chatId);
+                        } else {
+                            logger.info("Referral not created: user {} already has a referral", chatId);
+                        }
+                    } else {
+                        logger.warn("Self-referral attempt by chatId: {}", chatId);
+                    }
+                } catch (NumberFormatException e) {
+                    logger.error("Invalid referrer ID format: {}", referrerIdStr);
+                }
+            }
+            sendMainMenu(chatId, true);
+        } else if (messageText.equals("/topup")) {
+            messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+            topUpService.startTopUp(chatId);
+        } else if (messageText.equals("/withdraw")) {
+            messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+            withdrawService.startWithdrawal(chatId);
+        } else if (messageText.equals("/bonus")) {
+            messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+            bonusService.startBonus(chatId);
+        } else if (state != null && state.startsWith("TOPUP_")) {
+            topUpService.handleTextInput(chatId, messageText);
+        } else if (state != null && state.startsWith("WITHDRAW_")) {
+            withdrawService.handleTextInput(chatId, messageText);
+        } else if (state != null && state.startsWith("BONUS_")) {
+            bonusService.handleTextInput(chatId, messageText);
+        } else {
+            messageSender.sendMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+            sendMainMenu(chatId, true);
+        }
+    }
 
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setResizeKeyboard(true); // Makes it look good on mobile
-        replyKeyboardMarkup.setOneTimeKeyboard(false); // Keep it always shown
+    private void handleCallbackQuery(String callback, Long chatId) {
+        logger.info("Processing callback from chatId {}: {}", chatId, callback);
+        try {
+            switch (callback) {
+                case "TOPUP" -> {
+                    messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                    topUpService.startTopUp(chatId);
+                }
+                case "WITHDRAW" -> {
+                    messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                    withdrawService.startWithdrawal(chatId);
+                }
+                case "BONUS" -> {
+                    messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                    bonusService.startBonus(chatId);
+                }
+                case "CONTACT" -> {
+                    messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                    contactService.handleContact(chatId);
+                }
+                case "HOME" -> sendMainMenu(chatId, true);
+                case "BACK" -> {
+                    messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "BACK");
+                    String state = sessionService.getUserState(chatId);
+                    if (state != null && state.startsWith("TOPUP_")) {
+                        topUpService.handleBack(chatId);
+                    } else if (state != null && state.startsWith("WITHDRAW_")) {
+                        withdrawService.handleBack(chatId);
+                    } else if (state != null && state.startsWith("BONUS_")) {
+                        bonusService.handleBack(chatId);
+                    } else {
+                        sendMainMenu(chatId, true);
+                    }
+                }
+                default -> {
+                    if (callback.startsWith("TOPUP_")) {
+                        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                        topUpService.handleCallback(chatId, callback);
+                    } else if (callback.startsWith("WITHDRAW_")) {
+                        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                        withdrawService.handleCallback(chatId, callback);
+                    } else if (callback.startsWith("BONUS_")) {
+                        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                        bonusService.handleCallback(chatId, callback);
+                    } else {
+                        logger.warn("Unknown callback for chatId {}: {}", chatId, callback);
+                        messageSender.sendMessage(chatId, "Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error handling callback {} for chatId {}: {}", callback, chatId, e.getMessage());
+            messageSender.sendMessage(chatId, "Xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.");
+        }
+    }
 
-        List<KeyboardRow> keyboard = new ArrayList<>();
-
-        KeyboardRow row1 = new KeyboardRow();
-        row1.add("🏦 Hisob To'ldirish");
-        row1.add("💸 Pul chiqarish");
-
-        KeyboardRow row2 = new KeyboardRow();
-        row2.add("🎁 Bonus");
-        row2.add("ℹ️ Aloqa");
-
-        keyboard.add(row1);
-        keyboard.add(row2);
-
-        replyKeyboardMarkup.setKeyboard(keyboard);
+    public void sendMainMenu(Long chatId, boolean clearSession) {
+        if (clearSession) {
+            messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "HOME");
+            sessionService.clearSession(chatId);
+        }
 
         SendMessage message = new SendMessage();
-        message.setChatId(chatId.toString());
-        message.setText(messageText);
-        message.setReplyMarkup(replyKeyboardMarkup);
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+        message.setChatId(chatId);
+        message.setText("Xush kelibsiz! Operatsiyani tanlang:");
+        message.setReplyMarkup(createMainMenuKeyboard());
+        messageSender.sendMessage(message, chatId);
     }
 
-    private InlineKeyboardButton createButton(String text, String callbackData) {
+    private InlineKeyboardMarkup createMainMenuKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(createButton("🏦 Hisob To'ldirish", "TOPUP")));
+        rows.add(List.of(createButton("💸 Pul Chiqarish", "WITHDRAW")));
+        rows.add(List.of(createButton("🎁 Bonus", "BONUS")));
+        rows.add(List.of(createButton("ℹ️ Aloqa", "CONTACT")));
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardButton createButton(String text, String callback) {
         InlineKeyboardButton button = new InlineKeyboardButton();
         button.setText(text);
-        button.setCallbackData(callbackData);
+        button.setCallbackData(callback);
         return button;
-    }
-
-    private void handleCallback(Long chatId, String data) {
-        String response;
-
-        switch (data) {
-            case "TOP_UP":
-                response = "💳 Hisobni to'ldirish uchun summani kiriting.";
-                break;
-            case "WITHDRAW":
-                response = "💸 Pul chiqarish uchun kartangiz va summani kiriting.";
-                break;
-            case "BONUS":
-                response = "🎁 Sizning bonuslaringiz: 0 UZS (hajmi keyinchalik o'zgaradi)";
-                break;
-            case "CONTACT":
-                response = "📞 Aloqa uchun: @admin yoki tel: +998 90 123 45 67";
-                break;
-            default:
-                response = "Noma'lum buyruq!";
-        }
-
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId.toString());
-        message.setText(response);
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
     }
 }

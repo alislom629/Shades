@@ -1,7 +1,7 @@
-package com.example.shade.repository;/**
- * Date-7/7/2025
- * By Sardor Tokhirov
- * Time-5:02 PM (GMT+5)
- */
-public class UserBalanceRepository {
+package com.example.shade.repository;
+
+import com.example.shade.model.UserBalance;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserBalanceRepository extends JpaRepository<UserBalance, Long> {
 }

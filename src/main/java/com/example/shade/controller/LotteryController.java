@@ -1,7 +1,73 @@
-package com.example.shade.controller;/**
- * Date-7/7/2025
- * By Sardor Tokhirov
- * Time-5:03 PM (GMT+5)
- */
+package com.example.shade.controller;
+
+import com.example.shade.model.LotteryPrize;
+import com.example.shade.model.UserBalance;
+import com.example.shade.repository.LotteryPrizeRepository;
+import com.example.shade.service.LotteryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Base64;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api")
+@RequiredArgsConstructor
 public class LotteryController {
+    private final LotteryService lotteryService;
+    private final LotteryPrizeRepository lotteryPrizeRepository;
+
+    private boolean authenticate(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Basic ")) {
+            String credentials = new String(Base64.getDecoder().decode(authHeader.substring(6)));
+            String[] parts = credentials.split(":");
+            return parts.length == 2 && "MaxUp1000".equals(parts[0]) && "MaxUp1000".equals(parts[1]);
+        }
+        return false;
+    }
+
+    @PostMapping("/lottery/prizes")
+    public ResponseEntity<LotteryPrize> addPrize(
+            @RequestBody LotteryPrize prize,
+            HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+        LotteryPrize savedPrize = lotteryPrizeRepository.save(prize);
+        return ResponseEntity.ok(savedPrize);
+    }
+
+    @GetMapping("/lottery/prizes")
+    public ResponseEntity<List<LotteryPrize>> getPrizes(HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+        return ResponseEntity.ok(lotteryPrizeRepository.findAll());
+    }
+
+    @DeleteMapping("/lottery/prizes/{id}")
+    public ResponseEntity<Void> deletePrize(@PathVariable Long id, HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+        if (lotteryPrizeRepository.existsById(id)) {
+            lotteryPrizeRepository.deleteById(id);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/lottery/balance/{chatId}")
+    public ResponseEntity<UserBalance> getBalance(@PathVariable Long chatId) {
+        try {
+            UserBalance balance = lotteryService.getBalance(chatId);
+            return ResponseEntity.ok(balance);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

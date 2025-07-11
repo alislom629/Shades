@@ -1,7 +1,26 @@
-package com.example.shade.model;/**
- * Date-6/30/2025
- * By Sardor Tokhirov
- * Time-5:32 PM (GMT+5)
- */
+package com.example.shade.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Data
+@AllArgsConstructor
+@Builder
 public class Referral {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long referrerChatId; // User who shared the referral link
+    private Long referredChatId; // User who joined via the link
+    private BigDecimal balance;   // Referral balance for referrer
+    private LocalDateTime createdAt;
+
+    public Referral() {
+        this.balance = BigDecimal.ZERO;
+        this.createdAt = LocalDateTime.now();
+    }
 }

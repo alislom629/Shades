@@ -1,7 +1,10 @@
-package com.example.shade.repository;/**
- * Date-7/8/2025
- * By Sardor Tokhirov
- * Time-8:28 PM (GMT+5)
- */
-public class AdminChatRepository {
+package com.example.shade.repository;
+
+import com.example.shade.model.AdminChat;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface AdminChatRepository extends JpaRepository<AdminChat, Long> {
+    List<AdminChat> findByReceiveNotificationsTrue();
 }

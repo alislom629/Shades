@@ -1,5 +1,7 @@
-package com.example.shade;
+package com.example.shade.config;
 
+import com.example.shade.bot.AdminLogBot;
+import com.example.shade.bot.ShadePaymentBot;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
@@ -18,15 +20,20 @@ public class BotInitializer {
     @Autowired
     private ShadePaymentBot shadePaymentBot;
 
+
+    @Autowired
+    private AdminLogBot adminLogBot;
+
+
     @PostConstruct
     public void init() {
-        TelegramBotsApi botsApi;
         try {
-            botsApi = new TelegramBotsApi(DefaultBotSession.class);
+            TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
+            botsApi.registerBot(adminLogBot); // ✅ Register second bot here
             botsApi.registerBot(shadePaymentBot);
-            System.out.println("✅ Bot started and registered successfully!");
+            System.out.println("✅ Both bots started and registered successfully!");
         } catch (TelegramApiException e) {
-            System.out.println("❌ Failed to register bot: " + e.getMessage());
+            System.out.println("❌ Failed to register bots: " + e.getMessage());
         }
     }
 }

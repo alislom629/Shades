@@ -1,7 +1,50 @@
-package com.example.shade.service;/**
- * Date-6/11/2025
- * By Sardor Tokhirov
- * Time-10:17 AM (GMT+5)
- */
+package com.example.shade.service;
+
+import com.example.shade.bot.MessageSender;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
 public class ContactService {
+    private final MessageSender messageSender;
+
+    public void handleContact(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("📞 Bog‘lanish uchun quyidagi tugmalardan foydalaning:");
+        message.setReplyMarkup(createContactKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private InlineKeyboardMarkup createContactKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        // 1 - Admin tugmasi
+        rows.add(List.of(createButton("👤 Admin", "https://t.me/admin")));
+
+        // 2 - Chat tugmasi
+        rows.add(List.of(createButton("💬 Chat", "https://t.me/your_chat_link"))); // replace with actual group/chat link
+
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardButton createButton(String text, String callbackOrUrl) {
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText(text);
+        if (callbackOrUrl.startsWith("http")) {
+            button.setUrl(callbackOrUrl);
+        } else {
+            button.setCallbackData(callbackOrUrl);
+        }
+        return button;
+    }
 }

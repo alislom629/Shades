@@ -1,7 +1,773 @@
-package com.example.shade.service;/**
- * Date-6/11/2025
- * By Sardor Tokhirov
- * Time-10:17 AM (GMT+5)
- */
+package com.example.shade.service;
+
+import com.example.shade.bot.MessageSender;
+import com.example.shade.model.*;
+import com.example.shade.model.Currency;
+import com.example.shade.repository.HizmatRequestRepository;
+import com.example.shade.repository.PlatformRepository;
+import com.example.shade.repository.ReferralRepository;
+import com.example.shade.repository.UserBalanceRepository;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+
+import javax.xml.bind.DatatypeConverter;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
 public class BonusService {
+    private static final Logger logger = LoggerFactory.getLogger(BonusService.class);
+    private final UserSessionService sessionService;
+    private final ReferralRepository referralRepository;
+    private final UserBalanceRepository userBalanceRepository;
+    private final PlatformRepository platformRepository;
+    private final HizmatRequestRepository requestRepository;
+    private final LotteryService lotteryService;
+    private final MessageSender messageSender;
+    private final AdminLogBotService adminLogBotService;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private static final BigDecimal MINIMUM_TOPUP = new BigDecimal("10000");
+    private static final BigDecimal MAXIMUM_TOPUP = new BigDecimal("10000000");
+    private static final long MINIMUM_TICKETS = 36L;
+    private static final long MAXIMUM_TICKETS = 100L;
+
+    public void startBonus(Long chatId) {
+        logger.info("Starting bonus section for chatId: {}", chatId);
+        sessionService.setUserState(chatId, "BONUS_MENU");
+        sessionService.addNavigationState(chatId, "MAIN_MENU");
+        sendBonusMenu(chatId);
+    }
+
+    public void handleCallback(Long chatId, String callback) {
+        logger.info("Bonus callback for chatId {}: {}", chatId, callback);
+        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+        sessionService.clearMessageIds(chatId);
+
+        if (callback.startsWith("BONUS_TOPUP_PLATFORM:")) {
+            String platformName = callback.split(":")[1];
+            sessionService.setUserData(chatId, "platform", platformName);
+            sessionService.setUserState(chatId, "BONUS_TOPUP_USER_ID");
+            sessionService.addNavigationState(chatId, "BONUS_TOPUP");
+            sendUserIdInput(chatId, platformName);
+            return;
+        }
+        if (callback.startsWith("BONUS_TOPUP_PAST_ID:")) {
+            String userId = callback.split(":")[1];
+            validateUserId(chatId, userId);
+            return;
+        }
+        if ("BONUS_TOPUP_APPROVE_USER".equals(callback)) {
+            handleApproveUser(chatId);
+            return;
+        }
+        if ("BONUS_TOPUP_REJECT_USER".equals(callback)) {
+            sessionService.setUserState(chatId, "BONUS_TOPUP_USER_ID");
+            sendUserIdInput(chatId, sessionService.getUserData(chatId, "platform"));
+            return;
+        }
+        if ("BONUS_TOPUP_CONFIRM_YES".equals(callback)) {
+            initiateTopUpRequest(chatId);
+            return;
+        }
+        if ("BONUS_TOPUP_CONFIRM_NO".equals(callback)) {
+            sessionService.setUserState(chatId, "BONUS_TOPUP");
+            sendTopUpPlatformMenu(chatId);
+            return;
+        }
+        if ("BONUS_TOPUP_AMOUNT_10000".equals(callback)) {
+            handleTopUpInput(chatId, "10000");
+            return;
+        }
+        if ("BONUS_TOPUP_AMOUNT_50000".equals(callback)) {
+            handleTopUpInput(chatId, "50000");
+            return;
+        }
+
+        switch (callback) {
+            case "BONUS_LOTTERY" -> {
+                sessionService.setUserState(chatId, "BONUS_LOTTERY");
+                sessionService.addNavigationState(chatId, "BONUS_MENU");
+                sendLotteryMenu(chatId);
+            }
+            case "BONUS_REFERRAL" -> {
+                sessionService.setUserState(chatId, "BONUS_REFERRAL");
+                sessionService.addNavigationState(chatId, "BONUS_MENU");
+                sendReferralMenu(chatId);
+            }
+            case "BONUS_LOTTERY_PLAY" -> playLottery(chatId);
+            case "BONUS_REFERRAL_LINK" -> sendReferralLink(chatId);
+            case "BONUS_TOPUP" -> {
+                String savedPlatform = sessionService.getUserData(chatId, "platform");
+                if (savedPlatform != null) {
+                    sessionService.setUserState(chatId, "BONUS_TOPUP_USER_ID");
+                    sessionService.addNavigationState(chatId, "BONUS_MENU");
+                    sendUserIdInput(chatId, savedPlatform);
+                } else {
+                    sessionService.setUserState(chatId, "BONUS_TOPUP");
+                    sessionService.addNavigationState(chatId, "BONUS_MENU");
+                    sendTopUpPlatformMenu(chatId);
+                }
+            }
+            default -> messageSender.sendMessage(chatId, "Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+        }
+    }
+
+    public void handleTextInput(Long chatId, String text) {
+        String state = sessionService.getUserState(chatId);
+        logger.info("Text input for bonus, chatId: {}, state: {}, text: {}", chatId, state, text);
+        if ("BONUS_TOPUP_USER_ID".equals(state)) {
+            handleUserIdInput(chatId, text);
+        } else if ("BONUS_TOPUP_INPUT".equals(state)) {
+            handleTopUpInput(chatId, text);
+        } else {
+            messageSender.sendMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+        }
+    }
+
+    public void handleBack(Long chatId) {
+        String lastState = sessionService.popNavigationState(chatId);
+        logger.info("Handling back for bonus, chatId: {}, lastState: {}", chatId, lastState);
+        if (lastState == null) {
+            sendMainMenu(chatId);
+            return;
+        }
+        switch (lastState) {
+            case "MAIN_MENU" -> sendMainMenu(chatId);
+            case "BONUS_MENU" -> {
+                sessionService.setUserState(chatId, "BONUS_MENU");
+                sendBonusMenu(chatId);
+            }
+            case "BONUS_LOTTERY" -> {
+                sessionService.setUserState(chatId, "BONUS_LOTTERY");
+                sendLotteryMenu(chatId);
+            }
+            case "BONUS_REFERRAL" -> {
+                sessionService.setUserState(chatId, "BONUS_REFERRAL");
+                sendReferralMenu(chatId);
+            }
+            case "BONUS_TOPUP" -> {
+                sessionService.setUserState(chatId, "BONUS_TOPUP");
+                sendTopUpPlatformMenu(chatId);
+            }
+            case "BONUS_TOPUP_USER_ID", "BONUS_TOPUP_APPROVE_USER" -> {
+                sessionService.setUserState(chatId, "BONUS_TOPUP_USER_ID");
+                sendUserIdInput(chatId, sessionService.getUserData(chatId, "platform"));
+            }
+            case "BONUS_TOPUP_INPUT" -> {
+                sessionService.setUserState(chatId, "BONUS_TOPUP_INPUT");
+                String platform = sessionService.getUserData(chatId, "platform");
+                sendTopUpInput(chatId, platform);
+            }
+            case "BONUS_TOPUP_CONFIRM" -> {
+                sessionService.setUserState(chatId, "BONUS_TOPUP_CONFIRM");
+                String platform = sessionService.getUserData(chatId, "platform");
+                BigDecimal amount = new BigDecimal(sessionService.getUserData(chatId, "amount"));
+                sendTopUpConfirmation(chatId, platform, amount);
+            }
+            default -> sendMainMenu(chatId);
+        }
+    }
+
+    private void sendBonusMenu(Long chatId) {
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("🎁 Bonus bo‘limi:\nChiptalar: %d ta\nBalans: %,d so‘m\nIltimos, birini tanlang:",
+                balance.getTickets(), balance.getBalance().intValue()));
+        message.setReplyMarkup(createBonusMenuKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendLotteryMenu(Long chatId) {
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("🎟 Lotereya bo‘limi:\nSizning chiptalaringiz: %d ta\n" +
+                        "O‘ynash uchun kamida %d ta chipta kerak, maksimum %d ta.\nO‘ynashni xohlaysizmi?",
+                balance.getTickets(), MINIMUM_TICKETS, MAXIMUM_TICKETS));
+        message.setReplyMarkup(createLotteryKeyboard(balance.getTickets()));
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendReferralMenu(Long chatId) {
+        BigDecimal balance = getReferralBalance(chatId);
+        Long referralCount = referralRepository.countByReferrerChatId(chatId);
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("🤝 Referal bo‘limi:\nReferal foydalanuvchilar: %d ta\nBalans: %,d so‘m\nTanlang:",
+                referralCount, balance.intValue()));
+        message.setReplyMarkup(createReferralKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendReferralLink(Long chatId) {
+        String referralLink = String.format("https://t.me/shade_payment_bot?start=ref_%d", chatId);
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("Sizning referal havolangiz:\n%s\nUni nusxalang va do‘stlaringizga ulashing!", referralLink));
+        message.setReplyMarkup(createNavigationKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendTopUpPlatformMenu(Long chatId) {
+        BigDecimal balance = getReferralBalance(chatId);
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("💰 Pul to‘ldirish:\nBalans: %,d so‘m\nMinimal to‘ldirish summasi: 10,000 so‘m\nPlatformani tanlang:",
+                balance.intValue()));
+        message.setReplyMarkup(createTopUpPlatformKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendUserIdInput(Long chatId, String platform) {
+        List<HizmatRequest> recentRequests = requestRepository.findTop3ByChatIdAndPlatformOrderByCreatedAtDesc(chatId, platform);
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        if (!recentRequests.isEmpty()) {
+            HizmatRequest latestRequest = recentRequests.get(0);
+            sessionService.setUserData(chatId, "platformUserId", latestRequest.getPlatformUserId());
+            message.setText("Pastagi ID larni birini ishlatishingiz mumkin yoki yangi ID kiriting:");
+            message.setReplyMarkup(createSavedIdKeyboard(recentRequests));
+        } else {
+            message.setText(String.format("Iltimos, %s uchun ID kiriting (faqat raqamlar):", platform));
+            message.setReplyMarkup(createNavigationKeyboard());
+        }
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendUserApproval(Long chatId, String fullName, String userId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("Foydalanuvchi ma'lumotlari:\n\n👤 F.I.O: %s\n🆔 ID: %s\n\nBu ma'lumotlar to‘g‘rimi?", fullName, userId));
+        message.setReplyMarkup(createApprovalKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendNoUserFound(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Bu ID bo‘yicha foydalanuvchi topilmadi. Iltimos, boshqa ID kiriting:");
+        message.setReplyMarkup(createNavigationKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendTopUpInput(Long chatId, String platform) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("%s uchun to‘ldirmoqchi bo‘lgan summani kiriting (10,000 - 10,000,000 so‘m):", platform));
+        message.setReplyMarkup(createAmountKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void sendTopUpConfirmation(Long chatId, String platform, BigDecimal amount) {
+        String userId = sessionService.getUserData(chatId, "platformUserId");
+        String fullName = sessionService.getUserData(chatId, "fullName");
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(String.format("Ma'lumotlarni tekshiring:\n\n👤 F.I.O: %s\nPlatforma: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\nTo‘ldirishni tasdiqlaysizmi?",
+                fullName, platform, userId, amount.intValue()));
+        message.setReplyMarkup(createConfirmKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private void handleUserIdInput(Long chatId, String userId) {
+        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+        sessionService.clearMessageIds(chatId);
+
+        if (!isValidUserId(userId)) {
+            logger.warn("Invalid user ID format for chatId {}: {}", chatId, userId);
+            messageSender.sendMessage(chatId, "Noto‘g‘ri ID formati. Iltimos, faqat raqamlardan iborat ID kiriting:");
+            String platform = sessionService.getUserData(chatId, "platform");
+            sendUserIdInput(chatId, platform);
+            return;
+        }
+        validateUserId(chatId, userId);
+    }
+
+    private void validateUserId(Long chatId, String userId) {
+        String platformName = sessionService.getUserData(chatId, "platform");
+        Platform platform = platformRepository.findByName(platformName)
+                .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
+
+        String hash = platform.getApiKey();
+        String cashierPass = platform.getPassword();
+        String cashdeskId = platform.getWorkplaceId();
+
+        String confirmInput = userId + ":" + hash;
+        String confirm = DigestUtils.md5DigestAsHex(confirmInput.getBytes(StandardCharsets.UTF_8));
+
+        String sha256Input1 = "hash=" + hash + "&userid=" + userId + "&cashdeskid=" + cashdeskId;
+        String sha256Result1 = sha256Hex(sha256Input1);
+        String md5Input = "userid=" + userId + "&cashierpass=" + cashierPass + "&hash=" + hash;
+        String md5Result = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
+        String finalSignature = sha256Hex(sha256Result1 + md5Result);
+
+        String apiUrl = String.format("https://partners.servcul.com/CashdeskBotAPI/Users/%s?confirm=%s&cashdeskId=%s",
+                userId, confirm, cashdeskId);
+        logger.info("Validating user ID {} for platform {} (chatId: {}), URL: {}", userId, platformName, chatId, apiUrl);
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("sign", finalSignature);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<UserProfile> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, UserProfile.class);
+            UserProfile profile = response.getBody();
+
+            if (response.getStatusCode().is2xxSuccessful() && profile != null && profile.getUserId() != null && !profile.getName().isEmpty()) {
+                String fullName = profile.getName();
+                sessionService.setUserData(chatId, "platformUserId", userId);
+                sessionService.setUserData(chatId, "fullName", fullName);
+
+                HizmatRequest request = HizmatRequest.builder()
+                        .chatId(chatId)
+                        .platform(platformName)
+                        .platformUserId(userId)
+                        .fullName(fullName)
+                        .status(RequestStatus.PENDING)
+                        .createdAt(LocalDateTime.now())
+                        .amount(0L)
+                        .type(RequestType.TOP_UP)
+                        .build();
+                requestRepository.save(request);
+
+                sessionService.setUserState(chatId, "BONUS_TOPUP_INPUT");
+                sessionService.addNavigationState(chatId, "BONUS_TOPUP_APPROVE_USER");
+                sendTopUpInput(chatId, platformName);
+            } else {
+                logger.warn("Invalid user profile for ID {} on platform {}. Response: {}", userId, platformName, profile);
+                sendNoUserFound(chatId);
+            }
+        } catch (HttpClientErrorException.NotFound e) {
+            logger.warn("User not found for ID {} on platform {}: {}", userId, platformName, e.getMessage());
+            sendNoUserFound(chatId);
+        } catch (HttpClientErrorException e) {
+            logger.error("API error for user ID {} on platform {}: {}", userId, platformName, e.getMessage());
+            String errorMessage = e.getStatusCode().value() == 401 ? "Invalid signature" :
+                    e.getStatusCode().value() == 403 ? "Invalid confirm parameter. Please check user ID and platform credentials." :
+                            "API error occurred";
+            messageSender.sendMessage(chatId, errorMessage + ". Iltimos, qayta urinib ko‘ring.");
+            sendUserIdInput(chatId, platformName);
+        } catch (Exception e) {
+            logger.error("Error calling API for user ID {} on platform {}: {}", userId, platformName, e.getMessage());
+            messageSender.sendMessage(chatId, "API xatosi yuz berdi. Iltimos, qayta urinib ko‘ring.");
+            sendUserIdInput(chatId, platformName);
+        }
+    }
+
+    private void handleApproveUser(Long chatId) {
+        sessionService.setUserState(chatId, "BONUS_TOPUP_INPUT");
+        sessionService.addNavigationState(chatId, "BONUS_TOPUP_APPROVE_USER");
+        String platform = sessionService.getUserData(chatId, "platform");
+        sendTopUpInput(chatId, platform);
+    }
+
+    private void handleTopUpInput(Long chatId, String input) {
+        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+        sessionService.clearMessageIds(chatId);
+
+        String amountStr = input.trim();
+        String platform = sessionService.getUserData(chatId, "platform");
+
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(amountStr);
+
+            if (amount.compareTo(MINIMUM_TOPUP) < 0 || amount.compareTo(MAXIMUM_TOPUP) > 0) {
+                messageSender.sendMessage(chatId, "❗️Summa 10,000 dan 10,000,000 so‘m gacha bo‘lishi kerak!");
+                sendTopUpInput(chatId, platform);
+                return;
+            }
+
+            UserBalance balance = userBalanceRepository.findById(chatId)
+                    .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+
+            if (balance.getBalance().compareTo(MINIMUM_TOPUP) < 0) {
+                messageSender.sendMessage(chatId, String.format("❗️Hisobingizda kamida 10,000 so‘m bo‘lishi kerak. Joriy balans: %,d so‘m", balance.getBalance().intValue()));
+                sendTopUpInput(chatId, platform);
+                return;
+            }
+
+            if (balance.getBalance().compareTo(amount) < 0) {
+                messageSender.sendMessage(chatId, String.format("❗️Balansingizda yetarli mablag‘ yo‘q. Joriy balans: %,d so‘m", balance.getBalance().intValue()));
+                sendTopUpInput(chatId, platform);
+                return;
+            }
+
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid amount format for chatId {}: {}", chatId, amountStr);
+            messageSender.sendMessage(chatId, "❗️Noto‘g‘ri summa formati. Iltimos, to‘g‘ri raqam kiriting:");
+            sendTopUpInput(chatId, platform);
+            return;
+        }
+
+        sessionService.setUserData(chatId, "amount", amount.toString());
+        sessionService.setUserState(chatId, "BONUS_TOPUP_CONFIRM");
+        sessionService.addNavigationState(chatId, "BONUS_TOPUP_INPUT");
+        sendTopUpConfirmation(chatId, platform, amount);
+    }
+
+    private void initiateTopUpRequest(Long chatId) {
+        String platform = sessionService.getUserData(chatId, "platform");
+        String userId = sessionService.getUserData(chatId, "platformUserId");
+        String amountStr = sessionService.getUserData(chatId, "amount");
+
+        BigDecimal amount = new BigDecimal(amountStr);
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+
+        if (balance.getBalance().compareTo(amount) < 0) {
+            logger.warn("Insufficient balance for chatId {}: requested {}, available {}", chatId, amount, balance.getBalance());
+            messageSender.sendMessage(chatId, String.format("Balansingizda yetarli mablag‘ yo‘q! Joriy balans: %,d so‘m", balance.getBalance()));
+            sendTopUpInput(chatId, platform);
+            return;
+        }
+
+        HizmatRequest request = requestRepository.findTopByChatIdAndPlatformAndPlatformUserIdAndStatusOrderByCreatedAtDesc(
+                chatId, platform, userId, RequestStatus.PENDING).orElse(null);
+        if (request == null) {
+            logger.error("No pending request found for chatId {}, platform: {}, userId: {}", chatId, platform, userId);
+            messageSender.sendMessage(chatId, "Xatolik: So‘rov topilmadi. Qayta urinib ko‘ring.");
+            sendMainMenu(chatId);
+            return;
+        }
+
+        balance.setBalance(balance.getBalance().subtract(amount));
+        userBalanceRepository.save(balance);
+
+        request.setAmount(amount.longValue());
+        request.setStatus(RequestStatus.APPROVED);
+        request.setTransactionId(UUID.randomUUID().toString());
+        requestRepository.save(request);
+
+        long tickets = amount.longValue() / 30_000;
+        if (tickets > 0) {
+            lotteryService.awardTickets(chatId, amount.longValue());
+        }
+
+        creditReferral(chatId, amount.longValue());
+
+        String platformName = request.getPlatform();
+        Platform platformData = platformRepository.findByName(platformName)
+                .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
+
+        String hash = platformData.getApiKey();
+        String cashierPass = platformData.getPassword();
+        String cashdeskId = platformData.getWorkplaceId();
+        String lng = "uz";
+        String cardNumber = request.getCardNumber();
+
+        if (hash == null || cashierPass == null || cashdeskId == null ||
+                hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
+            logger.error("Invalid platform credentials for transfer {}", platformName);
+            messageSender.sendMessage(chatId, "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
+            sendMainMenu(chatId);
+            return;
+        }
+
+        String confirm = DigestUtils.md5DigestAsHex((userId + ":" + hash).getBytes(StandardCharsets.UTF_8));
+        String sha256Input = "hash=" + hash + "&lng=" + lng + "&userid=" + userId;
+        String sha256Part = sha256Hex(sha256Input);
+        String md5Input = "summa=" + amount.longValue() + "&cashierpass=" + cashierPass + "&cashdeskid=" + cashdeskId;
+        String md5Part = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
+        String finalSignature = sha256Hex(sha256Part + md5Part);
+
+        String apiUrl = String.format("https://partners.servcul.com/CashdeskBotAPI/Deposit/%s/Add", userId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("sign", finalSignature);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("cashdeskId", Integer.parseInt(cashdeskId));
+        body.put("lng", lng);
+        body.put("summa", amount.longValue());
+        body.put("confirm", confirm);
+        body.put("cardNumber", cardNumber);
+
+        try {
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<Map> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, Map.class);
+            Map<String, Object> responseBody = response.getBody();
+
+            Object successObj = responseBody != null ? responseBody.get("success") : null;
+            if (successObj == null && responseBody != null) successObj = responseBody.get("Success");
+
+            if (Boolean.TRUE.equals(successObj)) {
+                logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", chatId, userId, amount);
+                messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                sessionService.clearMessageIds(chatId);
+                messageSender.sendMessage(chatId, String.format("✅ %,d so‘m %s platformasiga to‘ldirildi!" +
+                                (tickets > 0 ? " Siz %d ta lotereya chiptasi oldingiz!" : ""),
+                        amount.intValue(), platform, tickets));
+            } else {
+                String error = responseBody != null && responseBody.get("Message") != null
+                        ? responseBody.get("Message").toString()
+                        : "Platform javob bermadi.";
+                logger.error("❌ Transfer failed for chatId {}: {}", chatId, error);
+                messageSender.sendMessage(chatId, "❌ Platformga to‘lov yuborilmadi: " + error);
+            }
+        } catch (Exception e) {
+            logger.error("❌ Error transferring top-up to platform for chatId {}: {}", chatId, e.getMessage());
+            messageSender.sendMessage(chatId, "❌ To‘lov yuborishda xatolik yuz berdi. Qayta urinib ko‘ring.");
+        }
+
+        sendMainMenu(chatId);
+    }
+
+    private void playLottery(Long chatId) {
+        try {
+            UserBalance balance = userBalanceRepository.findById(chatId)
+                    .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+            Long availableTickets = balance.getTickets();
+            if (availableTickets < MINIMUM_TICKETS) {
+                messageSender.sendMessage(chatId, String.format("O‘ynash uchun kamida %d ta chipta kerak! Sizda %d ta chipta bor.", MINIMUM_TICKETS, availableTickets));
+                sendLotteryMenu(chatId);
+                return;
+            }
+
+            Long numberOfPlays = Math.min(availableTickets, MAXIMUM_TICKETS);
+            Map<Long, BigDecimal> ticketWinnings = lotteryService.playLotteryWithDetails(chatId, numberOfPlays);
+
+            balance.setTickets(balance.getTickets() - numberOfPlays);
+            BigDecimal totalWinnings = ticketWinnings.values().stream()
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            balance.setBalance(balance.getBalance().add(totalWinnings));
+            userBalanceRepository.save(balance);
+
+            StringBuilder winningsLog = new StringBuilder("🎉 Lotereya natijalari:\n");
+            ticketWinnings.forEach((ticketNumber, amount) ->
+                    winningsLog.append(String.format("%d chipta = %,d so‘m\n", ticketNumber, amount.intValue())));
+            winningsLog.append(String.format("Jami yutuq: %,d so‘m\nYangi balans: %,d so‘m",
+                    totalWinnings.intValue(), balance.getBalance().intValue()));
+
+            messageSender.sendMessage(chatId, winningsLog.toString());
+
+            String adminLog = String.format(
+                    "📅 [%s] Lotereya o‘ynaldi 🎟\n" +
+                            "👤 Chat ID: %d\n" +
+                            "🎫 O‘ynalgan chiptalar: %d ta\n" +
+                            "💰 Jami yutuq: %,d so‘m\n" +
+                            "💸 Yangi balans: %,d so‘m",
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    chatId, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue());
+            adminLogBotService.sendLog(adminLog);
+
+            sendLotteryMenu(chatId);
+        } catch (IllegalStateException e) {
+            logger.error("Lottery play failed for chatId {}: {}", chatId, e.getMessage());
+            messageSender.sendMessage(chatId, "Xatolik: " + e.getMessage());
+            sendLotteryMenu(chatId);
+        }
+    }
+
+    public BigDecimal getReferralBalance(Long chatId) {
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+        return balance.getBalance();
+    }
+
+    public void creditReferral(Long referredChatId, long topUpAmount) {
+        Referral referral = referralRepository.findByReferredChatId(referredChatId).orElse(null);
+        if (referral == null) {
+            logger.info("No referral found for referredChatId: {}", referredChatId);
+            return;
+        }
+
+        Long referrerChatId = referral.getReferrerChatId();
+        BigDecimal commission = new BigDecimal(topUpAmount).multiply(new BigDecimal("0.01"));
+        UserBalance referrerBalance = userBalanceRepository.findById(referrerChatId)
+                .orElse(UserBalance.builder().chatId(referrerChatId).tickets(0L).balance(BigDecimal.ZERO).build());
+        referrerBalance.setBalance(referrerBalance.getBalance().add(commission));
+        userBalanceRepository.save(referrerBalance);
+        logger.info("Credited {} UZS to referrer {} for referredChatId {}", commission, referrerChatId, referredChatId);
+        messageSender.sendMessage(referrerChatId, String.format("🎉 Siz referal orqali %,d so‘m ishlab oldingiz! Yangi balans: %,d so‘m",
+                commission.intValue(), referrerBalance.getBalance().intValue()));
+    }
+
+    private String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes("UTF-8"));
+            return DatatypeConverter.printHexBinary(hash).toLowerCase();
+        } catch (Exception e) {
+            throw new RuntimeException("SHA-256 calculation failed", e);
+        }
+    }
+
+    private void sendMainMenu(Long chatId) {
+        sessionService.clearSession(chatId);
+        sessionService.setUserState(chatId, "MAIN_MENU");
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Xush kelibsiz! Operatsiyani tanlang:");
+        message.setReplyMarkup(createMainMenuKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private InlineKeyboardMarkup createMainMenuKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(createButton("🏦 Hisob To'ldirish", "TOPUP")));
+        rows.add(List.of(createButton("💸 Pul Chiqarish", "WITHDRAW")));
+        rows.add(List.of(createButton("🎁 Bonus", "BONUS")));
+        rows.add(List.of(createButton("ℹ️ Aloqa", "CONTACT")));
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createBonusMenuKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(createButton("🎟 Lotereya", "BONUS_LOTTERY")));
+        rows.add(List.of(createButton("🤝 Referal", "BONUS_REFERRAL")));
+        rows.add(List.of(createButton("💰 Pul to‘ldirish", "BONUS_TOPUP")));
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createLotteryKeyboard(long ticketCount) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        if (ticketCount >= MINIMUM_TICKETS) {
+            rows.add(List.of(createButton("🎲 O‘ynash", "BONUS_LOTTERY_PLAY")));
+        }
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createReferralKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(createButton("🔗 Referal havola", "BONUS_REFERRAL_LINK")));
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createTopUpPlatformKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        List<Platform> uzsPlatforms = platformRepository.findByCurrency(Currency.UZS);
+        List<Platform> rubPlatforms = platformRepository.findByCurrency(Currency.RUB);
+
+        int maxRows = Math.max(uzsPlatforms.size(), rubPlatforms.size());
+        for (int i = 0; i < maxRows; i++) {
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            if (i < uzsPlatforms.size()) {
+                Platform uzsPlatform = uzsPlatforms.get(i);
+                row.add(createButton("🇺🇿 " + uzsPlatform.getName(), "BONUS_TOPUP_PLATFORM:" + uzsPlatform.getName()));
+            }
+            if (i < rubPlatforms.size()) {
+                Platform rubPlatform = rubPlatforms.get(i);
+                row.add(createButton("🇷🇺 " + rubPlatform.getName(), "BONUS_TOPUP_PLATFORM:" + rubPlatform.getName()));
+            }
+            if (!row.isEmpty()) {
+                rows.add(row);
+            }
+        }
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createSavedIdKeyboard(List<HizmatRequest> recentRequests) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        if (!recentRequests.isEmpty()) {
+            List<InlineKeyboardButton> pastIdButtons = recentRequests.stream()
+                    .map(HizmatRequest::getPlatformUserId)
+                    .distinct()
+                    .limit(2)
+                    .map(id -> createButton("ID: " + id, "BONUS_TOPUP_PAST_ID:" + id))
+                    .collect(Collectors.toList());
+            if (!pastIdButtons.isEmpty()) {
+                rows.add(pastIdButtons);
+            }
+        }
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createApprovalKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton("✅ To‘g‘ri", "BONUS_TOPUP_APPROVE_USER"),
+                createButton("❌ Noto‘g‘ri", "BONUS_TOPUP_REJECT_USER")
+        ));
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createAmountKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton("10,000 so‘m", "BONUS_TOPUP_AMOUNT_10000"),
+                createButton("50,000 so‘m", "BONUS_TOPUP_AMOUNT_50000")
+        ));
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createConfirmKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton("✅ Ha", "BONUS_TOPUP_CONFIRM_YES"),
+                createButton("❌ Yo‘q", "BONUS_TOPUP_CONFIRM_NO")
+        ));
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private InlineKeyboardMarkup createNavigationKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private List<InlineKeyboardButton> createNavigationButtons() {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        buttons.add(createButton("🔙 Orqaga", "BACK"));
+        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        return buttons;
+    }
+
+    private InlineKeyboardButton createButton(String text, String callback) {
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText(text);
+        button.setCallbackData(callback);
+        return button;
+    }
+
+    private boolean isValidUserId(String userId) {
+        return userId.matches("\\d+");
+    }
 }

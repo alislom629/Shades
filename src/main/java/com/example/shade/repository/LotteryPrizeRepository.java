@@ -1,7 +1,7 @@
-package com.example.shade.repository;/**
- * Date-7/7/2025
- * By Sardor Tokhirov
- * Time-5:02 PM (GMT+5)
- */
-public class LotteryPrizeRepository {
+package com.example.shade.repository;
+
+import com.example.shade.model.LotteryPrize;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface LotteryPrizeRepository extends JpaRepository<LotteryPrize, Long> {
 }

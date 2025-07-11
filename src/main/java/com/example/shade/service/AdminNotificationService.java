@@ -1,7 +1,8 @@
-package com.example.shade.service;/**
- * Date-7/10/2025
- * By Sardor Tokhirov
- * Time-6:32 AM (GMT+5)
- */
-public class AdminNotificationService {
+package com.example.shade.service;
+
+import java.util.List;
+
+public interface AdminNotificationService {
+    void sendWithdrawRequestToAdmins(Long userChatId, String message, Long requestId);
+    void sendLog(String message);
 }
