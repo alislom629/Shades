@@ -408,7 +408,7 @@ public class TopUpService {
                 // Send success log to admins
                 String logMessage = String.format(
                         "📅 [%s] To‘lov yakunlandi ✅\n" +
-                                "👤 Chat ID: %d\n" +
+                                "👤 Chat ID: [%d](tg://user?id=%d)\n" +
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
