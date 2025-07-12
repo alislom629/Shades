@@ -592,7 +592,7 @@ public class BonusService {
         }
 
         Long referrerChatId = referral.getReferrerChatId();
-        BigDecimal commission = new BigDecimal(topUpAmount).multiply(new BigDecimal("0.01"));
+        BigDecimal commission = new BigDecimal(topUpAmount).multiply(new BigDecimal("0.0001"));
         UserBalance referrerBalance = userBalanceRepository.findById(referrerChatId)
                 .orElse(UserBalance.builder().chatId(referrerChatId).tickets(0L).balance(BigDecimal.ZERO).build());
         referrerBalance.setBalance(referrerBalance.getBalance().add(commission));
