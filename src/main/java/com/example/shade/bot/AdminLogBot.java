@@ -1,6 +1,7 @@
 package com.example.shade.bot;
 
 import com.example.shade.service.AdminLogBotService;
+import com.example.shade.service.BonusService;
 import com.example.shade.service.WithdrawService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -26,6 +27,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
     private final AdminLogBotService adminLogBotService;
     private final AdminTelegramMessageSender adminTelegramMessageSender;
     private final WithdrawService withdrawService;
+    private final BonusService bonusService;
 
     @Value("${telegram.admin.bot.token}")
     private String botToken;
@@ -71,7 +73,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 return;
             }
             if (update.hasMessage() && update.getMessage().hasText()) {
-                handleTextMessage(update.getMessage().getText(), update.getMessage().getChatId(),  update.getMessage().getMessageId());
+                handleTextMessage(update.getMessage().getText(), update.getMessage().getChatId(), update.getMessage().getMessageId());
             } else if (update.hasCallbackQuery()) {
                 handleCallbackQuery(update.getCallbackQuery().getData(), update.getCallbackQuery().getMessage().getChatId(), update.getCallbackQuery().getMessage().getMessageId());
             }
@@ -86,7 +88,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
         message.setChatId(chatId.toString());
         switch (messageText) {
             case "/start" -> {
-                adminLogBotService.registerAdmin(chatId,messageId);
+                adminLogBotService.registerAdmin(chatId, messageId);
                 message.setText("✅ Siz admin sifatida ro‘yxatdan o‘tdingiz. Loglar ushbu chatga yuboriladi.");
                 message.setReplyMarkup(createAdminMenuKeyboard());
             }
@@ -108,27 +110,47 @@ public class AdminLogBot extends TelegramLongPollingBot {
 
     private void handleCallbackQuery(String callbackData, Long chatId, Integer messageId) {
         logger.info("Processing callback from admin chatId {}: {}", chatId, callbackData);
+
+        // Remove buttons from original message
+        EditMessageReplyMarkup editMessage = new EditMessageReplyMarkup();
+        editMessage.setChatId(chatId.toString());
+        editMessage.setMessageId(messageId);
+        editMessage.setReplyMarkup(null); // Remove buttons
+        try {
+            execute(editMessage);
+            logger.info("Removed buttons from messageId {} in admin chatId {}", messageId, chatId);
+        } catch (Exception e) {
+            logger.error("Failed to remove buttons from messageId {} in admin chatId {}: {}", messageId, chatId, e.getMessage());
+        }
+
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
+
         if ("/view_logs".equals(callbackData)) {
             message.setText("Loglar bazada saqlanmaydi. Faqat ushbu chatda ko‘rishingiz mumkin.");
             message.setReplyMarkup(createAdminMenuKeyboard());
             adminTelegramMessageSender.sendMessage(message, chatId);
-        } else if (callbackData.startsWith("APPROVE_WITHDRAW:") || callbackData.startsWith("REJECT_WITHDRAW:")) {
+        } else if (callbackData.startsWith("APPROVE_WITHDRAW:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
-            boolean approve = callbackData.startsWith("APPROVE_WITHDRAW:");
-            // Remove buttons from original message
-            EditMessageReplyMarkup editMessage = new EditMessageReplyMarkup();
-            editMessage.setChatId(chatId.toString());
-            editMessage.setMessageId(messageId);
-            editMessage.setReplyMarkup(null); // Remove buttons
-            try {
-                execute(editMessage);
-                logger.info("Removed buttons from messageId {} in admin chatId {}", messageId, chatId);
-            } catch (Exception e) {
-                logger.error("Failed to remove buttons from messageId {} in admin chatId {}: {}", messageId, chatId, e.getMessage());
-            }
-            withdrawService.processAdminApproval(chatId, requestId, approve);
+            withdrawService.processAdminApproval(chatId, requestId, true);
+        } else if (callbackData.startsWith("REJECT_WITHDRAW:")) {
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
+            withdrawService.processAdminApproval(chatId, requestId, false);
+        } else if (callbackData.startsWith("ADMIN_APPROVE_TRANSFER:")) {
+            String requestId = callbackData.split(":")[1];
+            bonusService.handleAdminApproveTransfer(chatId, requestId);
+        } else if (callbackData.startsWith("ADMIN_DECLINE_TRANSFER:")) {
+            String requestId = callbackData.split(":")[1];
+            bonusService.handleAdminDeclineTransfer(chatId, requestId);
+        } else if (callbackData.startsWith("ADMIN_REMOVE_TICKETS:")) {
+            String userChatId = callbackData.split(":")[1];
+            bonusService.handleAdminRemoveTickets(chatId, Long.parseLong(userChatId));
+        } else if (callbackData.startsWith("ADMIN_REMOVE_BONUS:")) {
+            String userChatId = callbackData.split(":")[1];
+            bonusService.handleAdminRemoveBonus(chatId, Long.parseLong(userChatId));
+        } else if (callbackData.startsWith("ADMIN_BLOCK_USER:")) {
+            String userChatId = callbackData.split(":")[1];
+            bonusService.handleAdminBlockUser(chatId, Long.parseLong(userChatId));
         } else if ("/unregister".equals(callbackData)) {
             boolean deleted = adminLogBotService.deleteAdminChat(chatId);
             message.setText(deleted ? "✅ Admin ro‘yxatdan o‘chirildi." : "❌ Xatolik: Siz ro‘yxatdan o‘tmagansiz.");
