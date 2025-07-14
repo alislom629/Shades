@@ -2,6 +2,7 @@ package com.example.shade.controller;
 
 import com.example.shade.model.AdminCard;
 import com.example.shade.repository.AdminCardRepository;
+import com.example.shade.service.OsonService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class AdminCardController {
     private static final Logger logger = LoggerFactory.getLogger(AdminCardController.class);
     private final AdminCardRepository adminCardRepository;
+    private final OsonService osonService;
 
     private boolean authenticate(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -51,6 +53,21 @@ public class AdminCardController {
         }
         logger.info("Fetching all admin cards");
         return ResponseEntity.ok(adminCardRepository.findAll());
+    }
+
+    @GetMapping("/cards-and-wallet")
+    public ResponseEntity<Map<String, Object>> getCardsAndWalletBalance(HttpServletRequest request) {
+        if (!authenticate(request)) {
+            logger.warn("Unauthorized access to get cards and wallet balance");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
+        }
+        logger.info("Fetching cards and wallet balance");
+        Map<String, Object> result = osonService.getCardsAndWalletBalance();
+        if ("ERROR".equals(result.get("status"))) {
+            logger.error("Failed to fetch cards and wallet balance: {}", result.get("error"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+        }
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/cards/{id}")
@@ -100,6 +117,7 @@ public class AdminCardController {
                     existing.setCardNumber(card.getCardNumber().replaceAll("\\s+", ""));
                     existing.setOwnerName(card.getOwnerName());
                     existing.setLastUsed(card.getLastUsed());
+                    existing.setBalance(card.getBalance());
                     // Preserve existing main status unless explicitly changed via set-main
                     logger.info("Updating card ID: {}, new card number: {}", id, maskCard(card.getCardNumber()));
                     return ResponseEntity.ok(adminCardRepository.save(existing));
@@ -111,7 +129,7 @@ public class AdminCardController {
     }
 
     @PutMapping("/cards/{id}/set-main")
-    public ResponseEntity<? extends Map<String,? extends Object>> setMainCard(@PathVariable Long id, HttpServletRequest request) {
+    public ResponseEntity<? extends Map<String, ? extends Object>> setMainCard(@PathVariable Long id, HttpServletRequest request) {
         if (!authenticate(request)) {
             logger.warn("Unauthorized access to set main card ID: {}", id);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
@@ -139,7 +157,7 @@ public class AdminCardController {
     }
 
     @DeleteMapping("/cards/{id}")
-    public ResponseEntity<? extends Map<String,? extends Serializable>> deleteCard(@PathVariable Long id, HttpServletRequest request) {
+    public ResponseEntity<? extends Map<String, ? extends Serializable>> deleteCard(@PathVariable Long id, HttpServletRequest request) {
         if (!authenticate(request)) {
             logger.warn("Unauthorized access to delete card ID: {}", id);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));

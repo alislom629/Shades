@@ -22,6 +22,9 @@ public class AdminCard {
     @Column(name = "owner_name")
     private String ownerName;
 
+    @Column(name = "balance", nullable = false)
+    private Long balance = 0L;
+
     @Column(name = "last_used")
     private LocalDateTime lastUsed;
 

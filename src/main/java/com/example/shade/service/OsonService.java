@@ -127,78 +127,6 @@ public class OsonService {
         }
     }
 
-    public Map<String, Object> transferToCard(Long chatId, String platform, String platformUserId, long amount, String cardNumber) {
-        OsonConfig config = getConfig();
-        String url = config.getApiUrl() + "/api/transaction/perform";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("token", getAuthToken());
-        headers.set("User-Agent", "Oson/11.4.9 (uz.oson; build:2; iOS 18.5.0) Alamofire/4.9.1");
-        headers.set("Accept-Language", "en-UZ;q=1.0, ru-UZ;q=0.9");
-        headers.set("Accept-Encoding", "gzip;q=1.0, compress;q=0.5");
-        headers.set("Connection", "keep-alive");
-
-        AdminCard mainCard = adminCardRepository.findByMainTrue()
-                .orElseThrow(() -> new IllegalStateException("No main admin card configured"));
-        Long srcCardId = getCardIdByNumber(mainCard.getCardNumber());
-        if (srcCardId == null) {
-            logger.error("Main admin card not found in Oson system: {}", mainCard.getCardNumber());
-            return Map.of("status", "ERROR", "error", "Main admin card not found in Oson system");
-        }
-
-        long amountInTiyin = amount * 100;
-
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("amount", String.valueOf(amountInTiyin));
-        body.add("comment", String.format("Withdrawal for user %s from platform %s", platformUserId, platform));
-        body.add("ccy", "860"); // UZS currency code
-        body.add("dstcard", cardNumber);
-        body.add("srccard_id", String.valueOf(srcCardId));
-        body.add("version", "3");
-
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
-
-        try {
-            logger.info("Initiating transfer to card for chatId {}, platform: {}, userId: {}, amount: {}, card: {}, srcCardId: {}",
-                    chatId, platform, platformUserId, amount, cardNumber.substring(cardNumber.length() - 4), srcCardId);
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.PUT, entity, Map.class);
-            Map<String, Object> responseBody = response.getBody();
-
-            if (response.getStatusCode().is2xxSuccessful() && responseBody != null && "0".equals(String.valueOf(responseBody.get("errno")))) {
-                if (responseBody.get("sms_required") == Boolean.TRUE) {
-                    logger.error("SMS required for transfer, but direct transfer requested for chatId {}", chatId);
-                    return Map.of("status", "ERROR", "error", "SMS required but not supported in this flow");
-                }
-                Map<String, Object> result = new HashMap<>();
-                result.put("status", "SUCCESS");
-                result.put("transactionId", String.valueOf(responseBody.get("id")));
-                logger.info("Transfer successful for chatId {}, transactionId: {}", chatId, result.get("transactionId"));
-                return result;
-            } else {
-                String error = responseBody != null ? String.valueOf(responseBody.get("errstr")) : "No response body";
-                logger.error("Transfer failed for chatId {}: {}", chatId, error);
-                return Map.of("status", "ERROR", "error", "Transfer failed: " + error);
-            }
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 401) {
-                logger.warn("Token expired for chatId {}, retrying transfer", chatId);
-                authToken = null; // Invalidate token and retry
-                return transferToCard(chatId, platform, platformUserId, amount, cardNumber);
-            }
-            logger.error("HTTP error during transfer for chatId {}: {}", chatId, e.getMessage());
-            return Map.of("status", "ERROR", "error", "HTTP error: " + e.getStatusCode());
-        } catch (Exception e) {
-            logger.error("Unexpected error during transfer for chatId {}: {}", chatId, e.getMessage());
-            return Map.of("status", "ERROR", "error", "Unexpected error: " + e.getMessage());
-        }
-    }
-
-    public Map<String, Object> createPayment(Long chatId, String platform, String platformUserId, long amount, String userCardNumber, String adminCardId, long uniqueAmount) {
-        Map<String, Object> response = new HashMap<>();
-        // Placeholder: To be implemented when Oson payment creation API is provided
-        return response;
-    }
 
     public Map<String, Object> verifyPaymentByAmountAndCard(Long chatId, String platform, String platformUserId, long amount, String userCardNumber, String adminCardId, long uniqueAmount) {
         Map<String, Object> response = new HashMap<>();
@@ -271,5 +199,67 @@ public class OsonService {
         }
         return response;
     }
+    public Map<String, Object> getCardsAndWalletBalance() {
+        OsonConfig config = getConfig();
+        String cardUrl = config.getApiUrl() + "/api/user/card_v2";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.set("token", getAuthToken());
+        headers.set("User-Agent", "Oson/11.4.9 (uz.oson; build:2; iOS 18.5.0) Alamofire/4.9.1");
+        headers.set("Accept-Language", "en-UZ;q=1.0, ru-UZ;q=0.9");
+        headers.set("Accept-Encoding", "gzip;q=1.0, compress;q=0.5");
+        headers.set("Connection", "keep-alive");
 
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+        Map<String, Object> result = new HashMap<>();
+
+        // Fetch cards
+        try {
+            ResponseEntity<Map> cardResponse = restTemplate.exchange(cardUrl, HttpMethod.GET, entity, Map.class);
+            Map<String, Object> cardResponseBody = cardResponse.getBody();
+            if (cardResponse.getStatusCode().is2xxSuccessful() && cardResponseBody != null && "0".equals(String.valueOf(cardResponseBody.get("errno")))) {
+                List<Map<String, Object>> cards = (List<Map<String, Object>>) cardResponseBody.get("array");
+                List<Map<String, Object>> cardDetails = new ArrayList<>();
+                for (Map<String, Object> card : cards) {
+                    String number = (String) card.get("number");
+                    String ownerName = (String) card.get("owner");
+                    Long balance = Long.parseLong(String.valueOf(card.get("balance")));
+                    AdminCard adminCard = adminCardRepository.findByCardNumber(number).orElse(new AdminCard());
+                    adminCard.setCardNumber(number);
+                    adminCard.setBalance(balance);
+                    adminCard.setOwnerName(ownerName);
+                    adminCard.setLastUsed(OffsetDateTime.now().toLocalDateTime());
+                    adminCardRepository.save(adminCard);
+                    cardDetails.add(Map.of(
+                            "cardNumber", number,
+                            "balance", balance / 100.0, // Convert tiyin to UZS
+                            "ownerName", adminCard.getOwnerName() != null ? adminCard.getOwnerName() : "Unknown"
+                    ));
+                }
+                result.put("cards", cardDetails);
+                result.put("status", "SUCCESS");
+            } else {
+                logger.error("Failed to fetch cards: {}", cardResponseBody != null ? cardResponseBody.get("errstr") : "No response body");
+                result.put("status", "ERROR");
+                result.put("error", "Failed to fetch cards: " + (cardResponseBody != null ? cardResponseBody.get("errstr") : "Unknown error"));
+                return result;
+            }
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 401) {
+                authToken = null;
+                return getCardsAndWalletBalance();
+            }
+            logger.error("HTTP error fetching cards: {}", e.getMessage());
+            result.put("status", "ERROR");
+            result.put("error", "HTTP error fetching cards: " + e.getStatusCode());
+            return result;
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching cards: {}", e.getMessage());
+            result.put("status", "ERROR");
+            result.put("error", "Unexpected error fetching cards: " + e.getMessage());
+            return result;
+        }
+
+        return result;
+    }
 }

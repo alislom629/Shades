@@ -12,4 +12,5 @@ public interface AdminCardRepository extends JpaRepository<AdminCard, Long> {
 
     Optional<AdminCard> findByMainTrue();
 
+    Optional<AdminCard> findByCardNumber(String cardNumber);
 }
