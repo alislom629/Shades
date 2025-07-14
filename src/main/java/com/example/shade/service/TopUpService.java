@@ -212,7 +212,7 @@ public class TopUpService {
             ResponseEntity<UserProfile> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, UserProfile.class);
             UserProfile profile = response.getBody();
 
-            if (response.getStatusCode().is2xxSuccessful() && profile != null && profile.getUserId() != null && !profile.getName().isEmpty()) {
+            if (response.getStatusCode().is2xxSuccessful() && profile != null && profile.getUserId() != null && profile.getName()!=null) {
                 String fullName = profile.getName();
                 sessionService.setUserData(chatId, "platformUserId", userId);
                 sessionService.setUserData(chatId, "fullName", fullName);
@@ -408,7 +408,7 @@ public class TopUpService {
                 // Send success log to admins
                 String logMessage = String.format(
                         "📅 [%s] To‘lov yakunlandi ✅\n" +
-                                "👤 Chat ID: [%d](tg://user?id=%d)\n" +
+                                "👤 Chat ID: %d\n" +
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +

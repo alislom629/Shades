@@ -21,6 +21,8 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -206,7 +208,7 @@ public class WithdrawService {
         logger.info("Admin chatId {} {} withdraw requestId {}", adminChatId, approve ? "approved" : "rejected", requestId);
     }
 
-    private boolean processPayout(Long chatId, String platformName, String userId, String code, Long requestId) {
+    private BigDecimal processPayout(Long chatId, String platformName, String userId, String code, Long requestId) {
         Platform platform = platformRepository.findByName(platformName.replace("_", ""))
                 .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
 
@@ -219,7 +221,7 @@ public class WithdrawService {
             logger.error("Invalid platform credentials for platform {}: hash={}, cashierPass={}, cashdeskId={}",
                     platformName, hash, cashierPass, cashdeskId);
             messageSender.sendMessage(chatId, "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
-            return false;
+            return null;
         }
 
         try {
@@ -227,7 +229,7 @@ public class WithdrawService {
         } catch (NumberFormatException e) {
             logger.error("Invalid cashdeskId format for platform {}: {}", platformName, cashdeskId);
             messageSender.sendMessage(chatId, "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
-            return false;
+            return null;
         }
 
         // Confirm and signature
@@ -260,33 +262,43 @@ public class WithdrawService {
                 successObj = responseBody.get("Success");
             }
 
-            String errorMsg = responseBody != null && responseBody.get("Message") != null
-                    ? responseBody.get("Message").toString()
+            String errorMsg = responseBody != null && responseBody.get("message") != null
+                    ? responseBody.get("message").toString()
                     : "Platformdan noto‘g‘ri javob qaytdi.";
 
             if (response.getStatusCode().is2xxSuccessful() && Boolean.TRUE.equals(successObj)) {
-                logger.info("✅ Pul chiqarish successful for userId {} on platform {}, requestId: {}", userId, platformName, requestId);
-                return true;
+                Object summaObj = responseBody.get("summa");
+                BigDecimal summa = null;
+                if (summaObj != null) {
+                    try {
+                        summa = new BigDecimal(summaObj.toString());
+                    } catch (NumberFormatException e) {
+                        logger.warn("Failed to parse summa value: {}", summaObj);
+                    }
+                }
+
+                logger.info("✅ Payout successful for userId {} on platform {}, summa={}, requestId: {}", userId, platformName, summa, requestId);
+                return summa;
             } else {
-                logger.warn("❌ Pul chiqarish failed for userId {} on platform {}, response: {}", userId, platformName, responseBody);
-                messageSender.sendMessage(chatId, "❌ Pul chiqarish xatosi: " + errorMsg);
+                logger.warn("❌ Payout failed for userId {} on platform {}, response: {}", userId, platformName, responseBody);
+                messageSender.sendMessage(chatId, "❌ Payout xatosi: " + errorMsg);
                 sendMainMenu(chatId);
-                return false;
+                return null;
             }
         } catch (HttpClientErrorException e) {
             String errorMsg = e.getStatusCode().value() == 401 ? "Invalid signature" :
                     e.getStatusCode().value() == 403 ? "Invalid confirm" : "API xatosi: " + e.getMessage();
             logger.error("Payout API error for userId {} on platform {}: {}", userId, platformName, e.getMessage());
-            messageSender.sendMessage(chatId, "❌ Pul chiqarish xatosi: " + errorMsg);
-            adminLogBotService.sendToAdmins("❌ Pul chiqarish API error: " + errorMsg + " for requestId " + requestId);
+            messageSender.sendMessage(chatId, "❌ Payout xatosi: " + errorMsg);
+            adminLogBotService.sendToAdmins("❌ Payout API error: " + errorMsg + " for requestId " + requestId);
             sendMainMenu(chatId);
-            return false;
+            return null;
         } catch (Exception e) {
             logger.error("Unexpected error during payout for userId {} on platform {}: {}", userId, platformName, e.getMessage());
             messageSender.sendMessage(chatId, "❌ Noma’lum xatolik. Qayta urinib ko‘ring.");
-            adminLogBotService.sendToAdmins("❌ Pul chiqarish API error: Unexpected error for requestId " + requestId);
+            adminLogBotService.sendToAdmins("❌ Payout API error: Unexpected error for requestId " + requestId);
             sendMainMenu(chatId);
-            return false;
+            return null;
         }
     }
 
@@ -448,23 +460,40 @@ public class WithdrawService {
         requestRepository.save(request);
 
         // Process payout immediately
-        boolean payoutSuccess = processPayout(chatId, platform, userId, code, request.getId());
-        String logMessage = String.format(
-                "📅 [%s] Pul yechib olish so‘rovi qabul qilindi 💸\n" +
-                        "👤 Chat ID: %d \n" +
-                        "🌐 Platforma: %s\n" +
-                        "🆔 Foydalanuvchi ID: %s\n" +
-                        "📛 Ism: %s\n" +
-                        "💳 Karta raqami: %s\n" +
-                        "🔑 Kod: %s\n" +
-                        "📋 Tranzaksiya ID: %s",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                chatId, platform, userId, request.getFullName(), cardNumber, code, request.getId());
+        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId());
 
-        if (payoutSuccess) {
-            messageSender.sendMessage(chatId, "✅ Pul yechib olish so‘rovingiz qabul qilindi va tranzaksiya amalga oshirildi! Tranzaksiya ID: " + request.getTransactionId() + ". Admin tasdiqini kuting.");
+        if (paidAmount != null) {
+            // 🔥 Apply 2% service fee
+            BigDecimal netAmount = paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(0, RoundingMode.DOWN);
+
+            String logMessage = String.format(
+                    "📅 [%s] Pul yechib olish so‘rovi qabul qilindi 💸\n" +
+                            "👤 Chat ID: %d\n" +
+                            "🌐 Platforma: %s\n" +
+                            "🆔 Foydalanuvchi ID: %s\n" +
+                            "📛 Ism: %s\n" +
+                            "💳 Karta raqami: %s\n" +
+                            "🔑 Kod: %s\n" +
+                            "📋 Tranzaksiya ID: %s\n" +
+                            "💸 To‘langan summa (brutto): %s\n" +
+                            "💵 Foydalanuvchiga tushgan (netto, -2%%): %s",
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    chatId, platform, userId, request.getFullName(), cardNumber, code, request.getId(),
+                    paidAmount.toPlainString(),
+                    netAmount.toPlainString());
+
+            messageSender.sendMessage(chatId,
+                    "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilidni !\n" +
+                            "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
+                            "📉 Xizmat haqi (-2%%): " + paidAmount.subtract(netAmount).toPlainString() + "\n" +
+                            "💵 Sizga tushgan: " + netAmount.toPlainString() + "\n" +
+                            "📋 Tranzaksiya ID: " + request.getTransactionId() + "\n" +
+                            "🕓 Admin tasdiqini kuting.");
+
             adminLogBotService.sendWithdrawRequestToAdmins(chatId, logMessage, request.getId());
         }
+
+
     }
 
     private void sendPlatformSelection(Long chatId) {
