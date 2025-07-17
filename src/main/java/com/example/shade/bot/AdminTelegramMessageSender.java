@@ -63,27 +63,7 @@ public class AdminTelegramMessageSender {
             logger.error("Failed to send photo to admin chatId {}: {}", chatId, e.getMessage());
         }
     }
-    public void deleteMessages(Long chatId, List<Integer> messageIds) {
-        if (bot == null) {
-            logger.error("Bot not set for AdminTelegramMessageSender for chatId: {}", chatId);
-            return;
-        }
-        if (messageIds == null || messageIds.isEmpty()) {
-            logger.info("No messages to delete for chatId {}", chatId);
-            return;
-        }
-        for (Integer messageId : messageIds) {
-            try {
-                DeleteMessage deleteMessage = new DeleteMessage();
-                deleteMessage.setChatId(chatId.toString());
-                deleteMessage.setMessageId(messageId);
-                bot.execute(deleteMessage);
-                logger.info("Deleted messageId {} for chatId {}", messageId, chatId);
-            } catch (TelegramApiException e) {
-                logger.error("Failed to delete messageId {} for chatId {}: {}", messageId, chatId, e.getMessage());
-            }
-        }
-    }
+
     public void clearBotData(Long chatId, Integer messageId) {
         if (bot == null) {
             logger.error("Bot not set for AdminTelegramMessageSender for chatId: {}", chatId);

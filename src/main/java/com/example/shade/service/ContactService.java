@@ -28,10 +28,10 @@ public class ContactService {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         // 1 - Admin tugmasi
-        rows.add(List.of(createButton("👤 Admin", "https://t.me/admin")));
+        rows.add(List.of(createButton("👤 Admin", "https://t.me/Boss9w")));
 
         // 2 - Chat tugmasi
-        rows.add(List.of(createButton("💬 Chat", "https://t.me/your_chat_link"))); // replace with actual group/chat link
+        rows.add(List.of(createButton("💬 Chat", "https://t.me/Abadiy_Kassa"))); // replace with actual group/chat link
 
         markup.setKeyboard(rows);
         return markup;

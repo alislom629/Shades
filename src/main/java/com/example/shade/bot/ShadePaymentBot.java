@@ -1,6 +1,7 @@
 package com.example.shade.bot;
 
 import com.example.shade.model.Referral;
+import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.repository.ReferralRepository;
 import com.example.shade.service.*;
 import jakarta.annotation.PostConstruct;
@@ -29,6 +30,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private final BonusService bonusService;
     private final ContactService contactService;
     private final ReferralRepository referralRepository;
+    private final BlockedUserRepository blockedUserRepository;
     private final MessageSender messageSender;
     private final UserSessionService sessionService;
 
@@ -75,10 +77,15 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 logger.warn("Received null update");
                 return;
             }
+            Long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
+            if (blockedUserRepository.existsByChatId(chatId)) {
+                logger.info("Blocked user {} attempted to interact", chatId);
+                return; // Silently ignore if user is blocked
+            }
             if (update.hasMessage() && update.getMessage().hasText()) {
-                handleTextMessage(update.getMessage().getText(), update.getMessage().getChatId());
+                handleTextMessage(update.getMessage().getText(), chatId);
             } else if (update.hasCallbackQuery()) {
-                handleCallbackQuery(update.getCallbackQuery().getData(), update.getCallbackQuery().getMessage().getChatId());
+                handleCallbackQuery(update.getCallbackQuery().getData(), chatId);
             }
         } catch (Exception e) {
             logger.error("Error processing update: {}", update, e);
