@@ -23,6 +23,9 @@ public class HizmatRequest {
     @Column(name = "platform", nullable = false)
     private String platform;
 
+    @Column(name = "currency", nullable = false)
+    private Currency currency;
+
     @Column(name = "platform_user_id")
     private String platformUserId;
 

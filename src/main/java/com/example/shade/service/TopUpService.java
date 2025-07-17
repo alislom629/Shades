@@ -3,10 +3,7 @@ package com.example.shade.service;
 import com.example.shade.bot.MessageSender;
 import com.example.shade.model.*;
 import com.example.shade.model.Currency;
-import com.example.shade.repository.AdminCardRepository;
-import com.example.shade.repository.HizmatRequestRepository;
-import com.example.shade.repository.PlatformRepository;
-import com.example.shade.repository.UserBalanceRepository;
+import com.example.shade.repository.*;
 import jakarta.xml.bind.DatatypeConverter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -37,6 +34,7 @@ public class TopUpService {
     private final PlatformRepository platformRepository;
     private final AdminCardRepository adminCardRepository;
     private final UserBalanceRepository userBalanceRepository;
+    private final ExchangeRateRepository exchangeRateRepository;
     private final BonusService bonusService;
     private final LotteryService lotteryService;
     private final OsonService osonService;
@@ -216,7 +214,10 @@ public class TopUpService {
                 String fullName = profile.getName();
                 sessionService.setUserData(chatId, "platformUserId", userId);
                 sessionService.setUserData(chatId, "fullName", fullName);
-
+                Currency currency=Currency.UZS;
+                if (profile.getCurrencyId()== 1L){
+                    currency=Currency.RUB;
+                }
                 HizmatRequest request = HizmatRequest.builder()
                         .chatId(chatId)
                         .platform(platformName)
@@ -224,6 +225,7 @@ public class TopUpService {
                         .fullName(fullName)
                         .status(RequestStatus.PENDING)
                         .createdAt(LocalDateTime.now())
+                        .currency(currency)
                         .amount(0L)
                         .type(RequestType.TOP_UP)
                         .build();
@@ -385,6 +387,11 @@ public class TopUpService {
             requestRepository.save(request);
 
             boolean transferSuccessful = transferToPlatform(request, adminCard);
+            ExchangeRate latest = exchangeRateRepository.findLatest()
+                    .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+            long    amount =request.getCurrency().equals(Currency.RUB)? BigDecimal.valueOf(request.getUniqueAmount())
+                    .multiply(latest.getUzsToRub())
+                    .longValue()/1000: 0;
             if (transferSuccessful) {
                 request.setStatus(RequestStatus.APPROVED);
                 requestRepository.save(request);
@@ -408,23 +415,24 @@ public class TopUpService {
                 // Send success log to admins
                 String logMessage = String.format(
                         "📅 [%s] To‘lov yakunlandi ✅\n" +
-                                "👤 Chat ID: %d\n" +
+                                "👤 Chat ID: %s\n" +
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
-                                "💸 Miqdor: %d UZS\n" +
+                                "💸 Miqdor: %s UZS\n" +
+                                "💸 Miqdor: %s RUB\n" +
                                 "💳 Karta raqami: %s\n" +
                                 "🔐 Admin kartasi: %s\n" +
                                 "📌 Tranzaksiya ID: %s\n" +
                                 "🧾 Hisob ID: %d\n" +
                                 "🎟️ Chiptalar: %d\n",
-                                 "Tranzaksiya ID:",
-
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                         chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(),  request.getCardNumber(),
+                        request.getUniqueAmount(), amount,
+                        request.getCardNumber(),
                         adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
-                        tickets,request.getId());
+                        tickets, request.getId());
+
                 adminLogBotService.sendLog(logMessage);
 
                 messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
@@ -435,22 +443,22 @@ public class TopUpService {
                 // Log error to admins
                 String errorLogMessage = String.format(
                         "📅 [%s] To‘lov xatosi ❌\n" +
-                                "👤 Chat ID: %d\n" +
+                                "👤 Chat ID: %s\n" +
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
-                                "💸 Miqdor: %d UZS\n" +
+                                "💸 Miqdor: %s UZS\n" +
+                                "💸 Miqdor: %s RUB\n" +
                                 "💳 Karta raqami: %s\n" +
                                 "🔐 Admin kartasi: %s\n" +
                                 "📌 Tranzaksiya ID: %s\n" +
                                 "🧾 Hisob ID: %d\n" +
-                                "Tranzaksiya ID:\n",
-                                "📋 Xato xabari: %s",
+                                "📋 Xato xabari: %s", // ✅ moved here
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                         chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(), request.getCardNumber(),
-                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),request.getId(),
-                        statusResponse.toString());
+                        request.getUniqueAmount(), amount,request.getCardNumber(),
+                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
+                        request.getId(), statusResponse.toString());
                 logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", chatId, request.getPlatformUserId(), statusResponse);
                 adminLogBotService.sendLog(errorLogMessage);
 
@@ -477,7 +485,14 @@ public class TopUpService {
         String cashdeskId = platform.getWorkplaceId();
         String userId = request.getPlatformUserId();
         long amount = request.getUniqueAmount();
-        String lng = "uz";
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        if (request.getCurrency().equals(Currency.RUB)) {
+            amount = BigDecimal.valueOf(request.getUniqueAmount())
+                    .multiply(latest.getUzsToRub())
+                    .longValue() / 1000;
+        }
+        String lng = "ru";
 
         if (hash == null || cashierPass == null || cashdeskId == null ||
                 hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
@@ -549,18 +564,40 @@ public class TopUpService {
         AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
                 .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
 
-        String messageText = String.format(
-                "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
-                        "Karta: %s\n" +
-                        "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
-                        "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
-                        "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida 'Tasdiqlash' tugmasini bosing!\n" +
-                        "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
-                        "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
-                        "TG_ID: %d #%d",
-                request.getUniqueAmount(), adminCard.getCardNumber(),
-                request.getAmount(), request.getUniqueAmount(), chatId, request.getId());
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
 
+        String messageText;
+        if (request.getCurrency().equals(Currency.RUB)) {
+            long    amount = BigDecimal.valueOf(request.getUniqueAmount())
+                    .multiply(latest.getUzsToRub())
+                    .longValue()/1000;
+            messageText=String.format(
+                    "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
+                            "Karta: %s\n" +
+                            "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
+                            "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
+                            "1000 UZS ----> %s RUB kurs narxida\n\n" +
+                            "Sizga %s RUB tushadi \n\n" +
+                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida 'Tasdiqlash' tugmasini bosing!\n" +
+                            "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
+                            "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
+                            "TG_ID: %d #%d",
+                    request.getUniqueAmount(), adminCard.getCardNumber(),
+                    request.getAmount(), request.getUniqueAmount(), latest.getUzsToRub(), amount,chatId, request.getId());
+        }else {
+            messageText = String.format(
+                    "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
+                            "Karta: %s\n" +
+                            "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
+                            "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
+                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida 'Tasdiqlash' tugmasini bosing!\n" +
+                            "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
+                            "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
+                            "TG_ID: %d #%d",
+                    request.getUniqueAmount(), adminCard.getCardNumber(),
+                    request.getAmount(), request.getUniqueAmount(), chatId, request.getId());
+        }
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(messageText);
