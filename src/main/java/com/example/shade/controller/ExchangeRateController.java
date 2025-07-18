@@ -18,6 +18,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/exchange-rates")
+@CrossOrigin(origins = "*")
 public class ExchangeRateController {
 
     private final ExchangeRateRepository exchangeRateRepository;

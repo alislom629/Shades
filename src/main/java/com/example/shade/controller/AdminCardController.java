@@ -21,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class AdminCardController {
     private static final Logger logger = LoggerFactory.getLogger(AdminCardController.class);
     private final AdminCardRepository adminCardRepository;

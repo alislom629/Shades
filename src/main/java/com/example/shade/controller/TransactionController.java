@@ -18,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class TransactionController {
     private final HizmatRequestRepository hizmatRequestRepository;
 

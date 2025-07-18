@@ -16,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class LotteryController {
     private final LotteryService lotteryService;
     private final LotteryPrizeRepository lotteryPrizeRepository;

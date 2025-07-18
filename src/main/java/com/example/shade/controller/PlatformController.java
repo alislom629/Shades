@@ -16,6 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class PlatformController {
     private final PlatformService platformService;
 
