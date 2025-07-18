@@ -1,12 +1,9 @@
 package com.example.shade.service;
 
 import com.example.shade.bot.MessageSender;
-import com.example.shade.model.HizmatRequest;
-import com.example.shade.model.Platform;
-import com.example.shade.model.RequestStatus;
-import com.example.shade.model.RequestType;
-import com.example.shade.model.UserProfile;
+import com.example.shade.model.*;
 import com.example.shade.model.Currency;
+import com.example.shade.repository.ExchangeRateRepository;
 import com.example.shade.repository.HizmatRequestRepository;
 import com.example.shade.repository.PlatformRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +36,7 @@ public class WithdrawService {
     private static final Logger logger = LoggerFactory.getLogger(WithdrawService.class);
     private final UserSessionService sessionService;
     private final HizmatRequestRepository requestRepository;
+    private final ExchangeRateRepository exchangeRateRepository;
     private final PlatformRepository platformRepository;
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;
@@ -263,7 +261,7 @@ public class WithdrawService {
             }
 
             String errorMsg = responseBody != null && responseBody.get("message") != null
-                    ? responseBody.get("message").toString()
+                    ? responseBody.get("Message").toString()
                     : "Platformdan noto‘g‘ri javob qaytdi.";
 
             if (response.getStatusCode().is2xxSuccessful() && Boolean.TRUE.equals(successObj)) {
@@ -281,7 +279,7 @@ public class WithdrawService {
                 return summa;
             } else {
                 logger.warn("❌ Payout failed for userId {} on platform {}, response: {}", userId, platformName, responseBody);
-                messageSender.sendMessage(chatId, "❌ Payout xatosi: " + errorMsg);
+                messageSender.sendMessage(chatId, "❌ Payout xatosi: " + errorMsg );
                 sendMainMenu(chatId);
                 return null;
             }
@@ -363,7 +361,10 @@ public class WithdrawService {
                 String fullName = profile.getName();
                 sessionService.setUserData(chatId, "platformUserId", userId);
                 sessionService.setUserData(chatId, "fullName", fullName);
-
+                Currency currency = Currency.UZS;
+                if (profile.getCurrencyId() == 1L) {
+                    currency = Currency.RUB;
+                }
                 HizmatRequest request = HizmatRequest.builder()
                         .chatId(chatId)
                         .platform(platformName)
@@ -372,6 +373,7 @@ public class WithdrawService {
                         .status(RequestStatus.PENDING)
                         .createdAt(LocalDateTime.now())
                         .type(RequestType.WITHDRAWAL)
+                        .currency(currency)
                         .build();
                 requestRepository.save(request);
 
@@ -462,10 +464,15 @@ public class WithdrawService {
         // Process payout immediately
         BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId());
 
+
         if (paidAmount != null) {
             // 🔥 Apply 2% service fee
             BigDecimal netAmount = paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(0, RoundingMode.DOWN);
-
+            if (request.getCurrency().equals(Currency.RUB)){
+                ExchangeRate latest = exchangeRateRepository.findLatest()
+                        .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+                netAmount=netAmount.multiply(latest.getRubToUzs());
+            }
             String logMessage = String.format(
                     "📅 [%s] Pul yechib olish so‘rovi qabul qilindi 💸\n" +
                             "👤 Chat ID: %d\n" +
