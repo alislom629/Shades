@@ -8,7 +8,6 @@ import jakarta.xml.bind.DatatypeConverter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -457,33 +456,7 @@ public class TopUpService {
                         (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
                 sendMainMenu(chatId);
             } else {
-                String errorLogMessage = String.format(
-                        "📅 [%s] To‘lov xatosi ❌\n" +
-                                "👤 Chat ID: %s\n" +
-                                "🌐 Platforma: %s\n" +
-                                "🆔 Foydalanuvchi ID: %s\n" +
-                                "📛 Ism: %s\n" +
-                                "💸 Miqdor: %,d UZS\n" +
-                                "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: %s\n" +
-                                "🔐 Admin kartasi: %s\n" +
-                                "📌 Tranzaksiya ID: %s\n" +
-                                "🧾 Hisob ID: %d\n" +
-                                "📋 Xato xabari: %s\n" +
-                                "📋 So‘rov ID: %d",
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(), amount, request.getCardNumber(),
-                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
-                        statusResponse.toString(), request.getId());
-                logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}",
-                        chatId, request.getPlatformUserId(), statusResponse);
-                adminLogBotService.sendLog(errorLogMessage);
-
-                messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
-                sessionService.clearMessageIds(chatId);
-                messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
-                sendMainMenu(chatId);
+                handleTransferFailure(chatId, request, adminCard);
             }
         } else {
             logger.warn("Payment not received for chatId {}, uniqueAmount: {}, cardNumber: {}",
@@ -501,8 +474,47 @@ public class TopUpService {
         }
     }
 
+    private void handleTransferFailure(Long chatId, HizmatRequest request, AdminCard adminCard) {
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        long amount = request.getCurrency().equals(Currency.RUB) ?
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 : request.getUniqueAmount();
+
+        String errorLogMessage = String.format(
+                "📅 [%s] Transfer xatosi ❌\n" +
+                        "👤 Chat ID: %s\n" +
+                        "🌐 Platforma: %s\n" +
+                        "🆔 Foydalanuvchi ID: %s\n" +
+                        "📛 Ism: %s\n" +
+                        "💸 Miqdor: %,d UZS\n" +
+                        "💸 Miqdor: %,d RUB\n" +
+                        "💳 Karta raqami: %s\n" +
+                        "🔐 Admin kartasi: %s\n" +
+                        "📌 Tranzaksiya ID: %s\n" +
+                        "🧾 Hisob ID: %d\n" +
+                        "📋 So‘rov ID: %d",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                request.getUniqueAmount(), amount, request.getCardNumber(),
+                adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
+                request.getId());
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton("✅ Qabul qilish", "ADMIN_APPROVE_TRANSFER:" + request.getId()),
+                createButton("❌ Rad etish", "ADMIN_DECLINE_TRANSFER:" + request.getId())
+        ));
+        markup.setKeyboard(rows);
+
+        adminLogBotService.sendToAdmins(errorLogMessage, markup);
+        messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
+    }
+
     public void handleScreenshotApproval(Long chatId, Long requestId, boolean approve) {
-        HizmatRequest request = requestRepository.findByChatIdAndStatus(chatId,RequestStatus.PENDING_SCREENSHOT)
+        HizmatRequest request = requestRepository.findByChatIdAndStatus(chatId, RequestStatus.PENDING_SCREENSHOT)
                 .orElse(null);
         if (request == null) {
             logger.error("No request found for ID {}", requestId);
@@ -566,26 +578,7 @@ public class TopUpService {
                 messageSender.sendMessage(chatId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
                         (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
             } else {
-                String errorLogMessage = String.format(
-                        "📅 [%s] To‘lov skrinshoti tasdiqlangan, lekin transfer xatosi ❌\n" +
-                                "👤 Chat ID: %s\n" +
-                                "🌐 Platforma: %s\n" +
-                                "🆔 Foydalanuvchi ID: %s\n" +
-                                "📛 Ism: %s\n" +
-                                "💸 Miqdor: %,d UZS\n" +
-                                "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: %s\n" +
-                                "🔐 Admin kartasi: %s\n" +
-                                "📌 Tranzaksiya ID: %s\n" +
-                                "🧾 Hisob ID: %d\n" +
-                                "📋 So‘rov ID: %d",
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(), amount, request.getCardNumber(),
-                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
-                        request.getId());
-                adminLogBotService.sendLog(errorLogMessage);
-                messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
+                handleTransferFailure(chatId, request, adminCard);
             }
         } else {
             request.setStatus(RequestStatus.CANCELED);
@@ -688,6 +681,7 @@ public class TopUpService {
 
             logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", request.getChatId(), userId, responseBody);
             messageSender.sendMessage(request.getChatId(), "❌ Transfer xatosi: " + errorMsg);
+            adminLogBotService.sendToAdmins("❌ Transfer xatosi: " + errorMsg);
             return false;
 
         } catch (HttpClientErrorException e) {
@@ -760,7 +754,6 @@ public class TopUpService {
             messageSender.sendMessage(chatId, "Xatolik: Xabar ID si topilmadi. Iltimos, qayta urinib ko‘ring.");
         }
     }
-
 
     private long generateUniqueAmount(long baseAmount) {
         Random random = new Random();
@@ -973,6 +966,13 @@ public class TopUpService {
         return markup;
     }
 
+    private InlineKeyboardMarkup createNavigationKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
     private InlineKeyboardMarkup createMainMenuKeyboard() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -980,14 +980,6 @@ public class TopUpService {
         rows.add(List.of(createButton("💸 Pul Chiqarish", "WITHDRAW")));
         rows.add(List.of(createButton("🎁 Bonus", "BONUS")));
         rows.add(List.of(createButton("ℹ️ Aloqa", "CONTACT")));
-        markup.setKeyboard(rows);
-        return markup;
-    }
-
-    private InlineKeyboardMarkup createNavigationKeyboard() {
-        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(createNavigationButtons());
         markup.setKeyboard(rows);
         return markup;
     }

@@ -223,6 +223,21 @@ public class AdminLogBotService {
             logger.info("Sent message to admin chatId: {}", adminChat.getChatId());
         }
     }
+    public void sendToAdmins(String message, InlineKeyboardMarkup keyboard) {
+        var adminChats = adminChatRepository.findByReceiveNotificationsTrue();
+        if (adminChats.isEmpty()) {
+            logger.warn("No admin chat IDs with notifications enabled to send message: {}", message);
+            return;
+        }
+        for (AdminChat adminChat : adminChats) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(adminChat.getChatId().toString());
+            sendMessage.setText(message);
+            sendMessage.setReplyMarkup(keyboard);
+            adminTelegramMessageSender.sendMessage(sendMessage, adminChat.getChatId());
+            logger.info("Sent message with keyboard to admin chatId: {}", adminChat.getChatId());
+        }
+    }
 
     private InlineKeyboardMarkup createApprovalKeyboard(Long requestId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();

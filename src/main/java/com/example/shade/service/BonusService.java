@@ -3,12 +3,7 @@ package com.example.shade.service;
 import com.example.shade.bot.MessageSender;
 import com.example.shade.model.*;
 import com.example.shade.model.Currency;
-import com.example.shade.repository.BlockedUserRepository;
-import com.example.shade.repository.HizmatRequestRepository;
-import com.example.shade.repository.PlatformRepository;
-import com.example.shade.repository.ReferralRepository;
-import com.example.shade.repository.UserBalanceRepository;
-import com.example.shade.repository.AdminChatRepository;
+import com.example.shade.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +36,7 @@ public class BonusService {
     private final HizmatRequestRepository requestRepository;
     private final BlockedUserRepository blockedUserRepository;
     private final AdminChatRepository adminChatRepository;
+    private final ExchangeRateRepository exchangeRateRepository;
     private final LotteryService lotteryService;
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;
@@ -364,7 +360,10 @@ public class BonusService {
                 String fullName = profile.getName();
                 sessionService.setUserData(chatId, "platformUserId", userId);
                 sessionService.setUserData(chatId, "fullName", fullName);
-
+                Currency currency = Currency.UZS;
+                if (profile.getCurrencyId() == 1L) {
+                    currency = Currency.RUB;
+                }
                 HizmatRequest request = HizmatRequest.builder()
                         .chatId(chatId)
                         .platform(platformName)
@@ -373,6 +372,7 @@ public class BonusService {
                         .status(RequestStatus.PENDING)
                         .createdAt(LocalDateTime.now())
                         .amount(0L)
+                        .currency(currency)
                         .type(RequestType.TOP_UP)
                         .build();
                 requestRepository.save(request);
@@ -480,6 +480,7 @@ public class BonusService {
         }
 
         request.setAmount(amount.longValue());
+        request.setUniqueAmount(amount.longValue());
         request.setStatus(RequestStatus.PENDING_ADMIN);
         requestRepository.save(request);
 
@@ -494,6 +495,7 @@ public class BonusService {
                 request.getFullName(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId);
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
     }
+
     public void handleAdminApproveTransfer(Long chatId, String requestId) {
         AdminChat adminChat = adminChatRepository.findById(chatId).orElse(null);
         if (adminChat == null || !adminChat.isReceiveNotifications()) {
@@ -528,7 +530,12 @@ public class BonusService {
         String lng = "uz";
         String userId = request.getPlatformUserId();
         String cardNumber = request.getCardNumber();
-
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        long amount = request.getCurrency().equals(Currency.RUB) ?
+                BigDecimal.valueOf(request.getAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 : request.getAmount();
         if (hash == null || cashierPass == null || cashdeskId == null ||
                 hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
             logger.error("Invalid platform credentials for transfer {}", platformName);
@@ -540,7 +547,7 @@ public class BonusService {
         String confirm = DigestUtils.md5DigestAsHex((userId + ":" + hash).getBytes(StandardCharsets.UTF_8));
         String sha256Input = "hash=" + hash + "&lng=" + lng + "&userid=" + userId;
         String sha256Part = sha256Hex(sha256Input);
-        String md5Input = "summa=" + request.getAmount() + "&cashierpass=" + cashierPass + "&cashdeskid=" + cashdeskId;
+        String md5Input = "summa=" + amount + "&cashierpass=" + cashierPass + "&cashdeskid=" + cashdeskId;
         String md5Part = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
         String finalSignature = sha256Hex(sha256Part + md5Part);
 
@@ -553,31 +560,35 @@ public class BonusService {
         Map<String, Object> body = new HashMap<>();
         body.put("cashdeskId", Integer.parseInt(cashdeskId));
         body.put("lng", lng);
-        body.put("summa", request.getAmount());
+        body.put("summa", amount);
         body.put("confirm", confirm);
         body.put("cardNumber", cardNumber);
 
         try {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-//            ResponseEntity<Map> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, Map.class);
-//            Map<String, Object> responseBody = response.getBody();
+            ResponseEntity<Map> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, Map.class);
+            Map<String, Object> responseBody = response.getBody();
 
-//            Object successObj = responseBody != null ? responseBody.get("success") : null;
-//            if (successObj == null && responseBody != null) successObj = responseBody.get("Success");
+            Object successObj = responseBody != null ? responseBody.get("success") : null;
+            if (successObj == null && responseBody != null) successObj = responseBody.get("Success");
 
-            if (Boolean.TRUE) {
-                logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", request.getChatId(), userId, request.getAmount());
+            if (Boolean.TRUE.equals(successObj)) {
+                logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", request.getChatId(), userId, amount);
                 messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
                 sessionService.clearMessageIds(request.getChatId());
-                messageSender.sendMessage(request.getChatId(), String.format("✅ %,d so‘m %s platformasiga to‘ldirildi!" +
+                messageSender.sendMessage(request.getChatId(), String.format("✅ %,d  %s  %s platformasiga to‘ldirildi!" +
                                 (tickets > 0 ? " Siz %d ta lotereya chiptasi oldingiz!" : ""),
-                        request.getAmount(), platformName, tickets));
-                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi: Chat ID " + request.getChatId() + ", Summa: " + request.getAmount());
+                        amount, request.getCurrency(), platformName, tickets));
+                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi: Chat ID " + request.getChatId() + ", Summa: " + amount);
             } else {
-                String error = "";
+                String error = responseBody != null && responseBody.get("Message") != null
+                        ? responseBody.get("Message").toString()
+                        : "Platform javob bermadi.";
                 logger.error("❌ Transfer failed for chatId {}: {}", request.getChatId(), error);
                 messageSender.sendMessage(request.getChatId(), "❌ Platformga to‘lov yuborilmadi: " + error);
                 adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + error + " (Chat ID: " + request.getChatId() + ")");
+                handleTransferFailure(chatId, request);
+
             }
         } catch (Exception e) {
             logger.error("❌ Error transferring top-up to platform for chatId {}: {}", request.getChatId(), e.getMessage());
@@ -587,102 +598,43 @@ public class BonusService {
 
         sendMainMenu(request.getChatId());
     }
+    private void handleTransferFailure(Long chatId, HizmatRequest request) {
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        long amount = request.getCurrency().equals(Currency.RUB) ?
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 : request.getUniqueAmount();
 
-//    public void handleAdminApproveTransfer(Long chatId, String requestId) {
-//        AdminChat adminChat = adminChatRepository.findById(chatId).orElse(null);
-//        if (adminChat == null || !adminChat.isReceiveNotifications()) {
-//            messageSender.sendMessage(chatId, "Sizda bu amalni bajarish uchun ruxsat yo‘q.");
-//            return;
-//        }
-//        HizmatRequest request = requestRepository.findById(Long.parseLong(requestId))
-//                .orElseThrow(() -> new IllegalStateException("Request not found: " + requestId));
-//        request.setStatus(RequestStatus.APPROVED);
-//        request.setTransactionId(UUID.randomUUID().toString());
-//        requestRepository.save(request);
-//
-//        UserBalance balance = userBalanceRepository.findById(request.getChatId())
-//                .orElse(UserBalance.builder().chatId(request.getChatId()).tickets(0L).balance(BigDecimal.ZERO).build());
-//        balance.setBalance(balance.getBalance().subtract(new BigDecimal(request.getAmount())));
-//        userBalanceRepository.save(balance);
-//
-//        long tickets = request.getAmount() / 30_000;
-//        if (tickets > 0) {
-//            lotteryService.awardTickets(request.getChatId(), request.getAmount());
-//        }
-//
-//        creditReferral(request.getChatId(), request.getAmount());
-//
-//        String platformName = request.getPlatform();
-//        Platform platformData = platformRepository.findByName(platformName)
-//                .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
-//
-//        String hash = platformData.getApiKey();
-//        String cashierPass = platformData.getPassword();
-//        String cashdeskId = platformData.getWorkplaceId();
-//        String lng = "uz";
-//        String userId = request.getPlatformUserId();
-//        String cardNumber = request.getCardNumber();
-//
-//        if (hash == null || cashierPass == null || cashdeskId == null ||
-//                hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
-//            logger.error("Invalid platform credentials for transfer {}", platformName);
-//            messageSender.sendMessage(request.getChatId(), "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
-//            sendMainMenu(request.getChatId());
-//            return;
-//        }
-//
-//        String confirm = DigestUtils.md5DigestAsHex((userId + ":" + hash).getBytes(StandardCharsets.UTF_8));
-//        String sha256Input = "hash=" + hash + "&lng=" + lng + "&userid=" + userId;
-//        String sha256Part = sha256Hex(sha256Input);
-//        String md5Input = "summa=" + request.getAmount() + "&cashierpass=" + cashierPass + "&cashdeskid=" + cashdeskId;
-//        String md5Part = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
-//        String finalSignature = sha256Hex(sha256Part + md5Part);
-//
-//        String apiUrl = String.format("https://partners.servcul.com/CashdeskBotAPI/Deposit/%s/Add", userId);
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.set("sign", finalSignature);
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//
-//        Map<String, Object> body = new HashMap<>();
-//        body.put("cashdeskId", Integer.parseInt(cashdeskId));
-//        body.put("lng", lng);
-//        body.put("summa", request.getAmount());
-//        body.put("confirm", confirm);
-//        body.put("cardNumber", cardNumber);
-//
-//        try {
-//            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-//            ResponseEntity<Map> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, Map.class);
-//            Map<String, Object> responseBody = response.getBody();
-//
-//            Object successObj = responseBody != null ? responseBody.get("success") : null;
-//            if (successObj == null && responseBody != null) successObj = responseBody.get("Success");
-//
-//            if (Boolean.TRUE.equals(successObj)) {
-//                logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", request.getChatId(), userId, request.getAmount());
-//                messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
-//                sessionService.clearMessageIds(request.getChatId());
-//                messageSender.sendMessage(request.getChatId(), String.format("✅ %,d so‘m %s platformasiga to‘ldirildi!" +
-//                                (tickets > 0 ? " Siz %d ta lotereya chiptasi oldingiz!" : ""),
-//                        request.getAmount(), platformName, tickets));
-//                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi: Chat ID " + request.getChatId() + ", Summa: " + request.getAmount());
-//            } else {
-//                String error = responseBody != null && responseBody.get("Message") != null
-//                        ? responseBody.get("Message").toString()
-//                        : "Platform javob bermadi.";
-//                logger.error("❌ Transfer failed for chatId {}: {}", request.getChatId(), error);
-//                messageSender.sendMessage(request.getChatId(), "❌ Platformga to‘lov yuborilmadi: " + error);
-//                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + error + " (Chat ID: " + request.getChatId() + ")");
-//            }
-//        } catch (Exception e) {
-//            logger.error("❌ Error transferring top-up to platform for chatId {}: {}", request.getChatId(), e.getMessage());
-//            messageSender.sendMessage(request.getChatId(), "❌ To‘lov yuborishda xatolik yuz berdi. Qayta urinib ko‘ring.");
-//            adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + e.getMessage() + " (Chat ID: " + request.getChatId() + ")");
-//        }
-//
-//        sendMainMenu(request.getChatId());
-//    }
+        String errorLogMessage = String.format(
+                "📅 [%s] Transfer xatosi ❌\n" +
+                        "👤 Chat ID: %s\n" +
+                        "🌐 Platforma: %s\n" +
+                        "🆔 Foydalanuvchi ID: %s\n" +
+                        "📛 Ism: %s\n" +
+                        "💸 Miqdor: %,d UZS\n" +
+                        "💸 Miqdor: %,d RUB\n" +
+                        "💳 Karta raqami: %s\n" +
+                        "📌 Tranzaksiya ID: %s\n" +
+                        "🧾 Hisob ID: %d\n" +
+                        "📋 So‘rov ID: %d",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                request.getUniqueAmount(), amount, request.getCardNumber(),
+                 request.getTransactionId(), request.getBillId(),
+                request.getId());
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton("✅ Qabul qilish", "ADMIN_APPROVE_TRANSFER:" + request.getId()),
+                createButton("❌ Rad etish", "ADMIN_DECLINE_TRANSFER:" + request.getId())
+        ));
+        markup.setKeyboard(rows);
+
+        adminLogBotService.sendToAdmins(errorLogMessage, markup);
+        messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
+    }
 
     public void handleAdminDeclineTransfer(Long chatId, String requestId) {
         AdminChat adminChat = adminChatRepository.findById(chatId).orElse(null);
