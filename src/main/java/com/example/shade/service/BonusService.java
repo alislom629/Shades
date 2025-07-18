@@ -243,7 +243,7 @@ public class BonusService {
     }
 
     private void sendReferralLink(Long chatId) {
-        String referralLink = String.format("https://t.me/shade_payment_bot?start=ref_%d", chatId);
+        String referralLink = String.format("https://t.me/@xonpay_bot?start=ref_%d", chatId);
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(String.format("Sizning referal havolangiz:\n%s\nUni nusxalang va do‘stlaringizga ulashing!", referralLink));
