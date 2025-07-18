@@ -38,6 +38,9 @@ public class HizmatRequest {
     @Column(name = "amount")
     private Long amount;
 
+    @Column(name = "payment_attempts")
+    private Integer paymentAttempts;
+
     @Column(name = "unique_amount")
     private Long uniqueAmount;
 

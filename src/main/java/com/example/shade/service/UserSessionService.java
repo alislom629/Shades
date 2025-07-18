@@ -32,6 +32,11 @@ public class UserSessionService {
         data.put(key, value);
         sessionDataStore.put(chatId, data);
     }
+    public String getUserData(Long chatId, String key, String defaultValue) {
+        return Optional.ofNullable(sessionDataStore.get(chatId))
+                .map(data -> data.getOrDefault(key, defaultValue))
+                .orElse(defaultValue);
+    }
 
     public String getUserData(Long chatId, String key) {
         return Optional.ofNullable(sessionDataStore.get(chatId))

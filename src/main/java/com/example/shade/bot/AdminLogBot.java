@@ -4,6 +4,7 @@ import com.example.shade.model.BlockedUser;
 import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.service.AdminLogBotService;
 import com.example.shade.service.BonusService;
+import com.example.shade.service.TopUpService;
 import com.example.shade.service.WithdrawService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
     private final AdminTelegramMessageSender adminTelegramMessageSender;
     private final WithdrawService withdrawService;
     private final BonusService bonusService;
+    private final TopUpService topUpService;
     private final BlockedUserRepository blockedUserRepository;
 
     @Value("${telegram.admin.bot.token}")
@@ -183,6 +185,12 @@ public class AdminLogBot extends TelegramLongPollingBot {
         } else if (callbackData.startsWith("REJECT_WITHDRAW:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             withdrawService.processAdminApproval(chatId, requestId, false);
+        } else if (callbackData.startsWith("SCREENSHOT_APPROVE:")) {
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
+            topUpService.handleScreenshotApproval(chatId, requestId, true);
+        } else if (callbackData.startsWith("SCREENSHOT_REJECT:")) {
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
+            topUpService.handleScreenshotApproval(chatId, requestId, false);
         } else if (callbackData.startsWith("ADMIN_APPROVE_TRANSFER:")) {
             String requestId = callbackData.split(":")[1];
             bonusService.handleAdminApproveTransfer(chatId, requestId);

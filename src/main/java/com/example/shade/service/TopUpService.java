@@ -8,6 +8,7 @@ import jakarta.xml.bind.DatatypeConverter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -44,11 +45,13 @@ public class TopUpService {
     private static final long MIN_AMOUNT = 10_000;
     private static final long MAX_AMOUNT = 10_000_000;
     private static final String PAYMENT_MESSAGE_KEY = "payment_message_id";
+    private static final String PAYMENT_ATTEMPTS_KEY = "payment_attempts";
 
     public void startTopUp(Long chatId) {
         logger.info("Starting top-up for chatId: {}", chatId);
         sessionService.setUserState(chatId, "TOPUP_PLATFORM_SELECTION");
         sessionService.addNavigationState(chatId, "MAIN_MENU");
+        sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
         sendPlatformSelection(chatId);
     }
 
@@ -99,6 +102,10 @@ public class TopUpService {
             }
             case "TOPUP_CONFIRM" -> initiateTopUpRequest(chatId);
             case "TOPUP_PAYMENT_CONFIRM" -> verifyPayment(chatId);
+            case "TOPUP_SEND_SCREENSHOT" -> {
+                sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
+                messageSender.sendMessage(chatId, "Iltimos, to‘lov chekining skrinshotini yuboring.");
+            }
             default -> {
                 if (callback.startsWith("TOPUP_PLATFORM:")) {
                     String platformName = callback.split(":")[1];
@@ -153,6 +160,10 @@ public class TopUpService {
                 sessionService.setUserState(chatId, "TOPUP_PAYMENT_CONFIRM");
                 sendPaymentInstruction(chatId);
             }
+            case "TOPUP_AWAITING_SCREENSHOT" -> {
+                sessionService.setUserState(chatId, "TOPUP_PAYMENT_CONFIRM");
+                sendPaymentInstruction(chatId);
+            }
             default -> sendMainMenu(chatId);
         }
     }
@@ -178,7 +189,6 @@ public class TopUpService {
         String cashierPass = platform.getPassword();
         String cashdeskId = platform.getWorkplaceId();
 
-        // Validate credentials
         if (hash == null || cashierPass == null || cashdeskId == null || hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
             logger.error("Invalid platform credentials for platform {}: hash={}, cashierPass={}, cashdeskId={}",
                     platformName, hash, cashierPass, cashdeskId);
@@ -194,7 +204,6 @@ public class TopUpService {
         String md5Result = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
         String finalSignature = sha256Hex(sha256Result1 + md5Result);
 
-        // Log signature components
         logger.debug("Validating user ID {}: confirmInput={}, confirm={}, sha256Input1={}, sha256Result1={}, md5Input={}, md5Result={}, finalSignature={}",
                 userId, confirmInput, confirm, sha256Input1, sha256Result1, md5Input, md5Result, finalSignature);
 
@@ -210,13 +219,13 @@ public class TopUpService {
             ResponseEntity<UserProfile> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, UserProfile.class);
             UserProfile profile = response.getBody();
 
-            if (response.getStatusCode().is2xxSuccessful() && profile != null && profile.getUserId() != null && profile.getName()!=null) {
+            if (response.getStatusCode().is2xxSuccessful() && profile != null && profile.getUserId() != null && profile.getName() != null) {
                 String fullName = profile.getName();
                 sessionService.setUserData(chatId, "platformUserId", userId);
                 sessionService.setUserData(chatId, "fullName", fullName);
-                Currency currency=Currency.UZS;
-                if (profile.getCurrencyId()== 1L){
-                    currency=Currency.RUB;
+                Currency currency = Currency.UZS;
+                if (profile.getCurrencyId() == 1L) {
+                    currency = Currency.RUB;
                 }
                 HizmatRequest request = HizmatRequest.builder()
                         .chatId(chatId)
@@ -351,6 +360,7 @@ public class TopUpService {
         request.setCardNumber(sessionService.getUserData(chatId, "cardNumber"));
         request.setStatus(RequestStatus.PENDING_PAYMENT);
         request.setTransactionId(UUID.randomUUID().toString());
+        request.setPaymentAttempts(0);
         requestRepository.save(request);
 
         adminCard.setLastUsed(LocalDateTime.now());
@@ -373,6 +383,12 @@ public class TopUpService {
             return;
         }
 
+        int attempts = Integer.parseInt(sessionService.getUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0"));
+        attempts++;
+        sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, String.valueOf(attempts));
+        request.setPaymentAttempts(attempts);
+        requestRepository.save(request);
+
         AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
                 .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
 
@@ -384,18 +400,18 @@ public class TopUpService {
             request.setTransactionId((String) statusResponse.get("transactionId"));
             request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
             request.setPayUrl((String) statusResponse.get("payUrl"));
+            request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
             boolean transferSuccessful = transferToPlatform(request, adminCard);
             ExchangeRate latest = exchangeRateRepository.findLatest()
                     .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-            long    amount =request.getCurrency().equals(Currency.RUB)? BigDecimal.valueOf(request.getUniqueAmount())
-                    .multiply(latest.getUzsToRub())
-                    .longValue()/1000: 0;
-            if (transferSuccessful) {
-                request.setStatus(RequestStatus.APPROVED);
-                requestRepository.save(request);
+            long amount = request.getCurrency().equals(Currency.RUB) ?
+                    BigDecimal.valueOf(request.getUniqueAmount())
+                            .multiply(latest.getUzsToRub())
+                            .longValue() / 1000 : request.getUniqueAmount();
 
+            if (transferSuccessful) {
                 UserBalance balance = userBalanceRepository.findById(chatId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
@@ -412,54 +428,56 @@ public class TopUpService {
 
                 bonusService.creditReferral(chatId, request.getAmount());
 
-                // Send success log to admins
                 String logMessage = String.format(
                         "📅 [%s] To‘lov yakunlandi ✅\n" +
                                 "👤 Chat ID: %s\n" +
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
-                                "💸 Miqdor: %s UZS\n" +
-                                "💸 Miqdor: %s RUB\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +
                                 "🔐 Admin kartasi: %s\n" +
                                 "📌 Tranzaksiya ID: %s\n" +
                                 "🧾 Hisob ID: %d\n" +
-                                "🎟️ Chiptalar: %d\n",
+                                "🎟️ Chiptalar: %d\n" +
+                                "📋 So‘rov ID: %d",
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                         chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
                         request.getUniqueAmount(), amount,
-                        request.getCardNumber(),
-                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
-                        tickets, request.getId());
+                        request.getCardNumber(), adminCard.getCardNumber(),
+                        request.getTransactionId(), request.getBillId(), tickets, request.getId());
 
                 adminLogBotService.sendLog(logMessage);
 
                 messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
                 sessionService.clearMessageIds(chatId);
-                messageSender.sendMessage(chatId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" + (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
+                sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
+                messageSender.sendMessage(chatId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
+                        (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
                 sendMainMenu(chatId);
             } else {
-                // Log error to admins
                 String errorLogMessage = String.format(
                         "📅 [%s] To‘lov xatosi ❌\n" +
                                 "👤 Chat ID: %s\n" +
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
-                                "💸 Miqdor: %s UZS\n" +
-                                "💸 Miqdor: %s RUB\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +
                                 "🔐 Admin kartasi: %s\n" +
                                 "📌 Tranzaksiya ID: %s\n" +
                                 "🧾 Hisob ID: %d\n" +
-                                "📋 Xato xabari: %s", // ✅ moved here
+                                "📋 Xato xabari: %s\n" +
+                                "📋 So‘rov ID: %d",
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                         chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(), amount,request.getCardNumber(),
+                        request.getUniqueAmount(), amount, request.getCardNumber(),
                         adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
-                        request.getId(), statusResponse.toString());
-                logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", chatId, request.getPlatformUserId(), statusResponse);
+                        statusResponse.toString(), request.getId());
+                logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}",
+                        chatId, request.getPlatformUserId(), statusResponse);
                 adminLogBotService.sendLog(errorLogMessage);
 
                 messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
@@ -470,9 +488,135 @@ public class TopUpService {
         } else {
             logger.warn("Payment not received for chatId {}, uniqueAmount: {}, cardNumber: {}",
                     chatId, request.getUniqueAmount(), request.getCardNumber());
-            messageSender.sendMessage(chatId, "To‘lov hali qabul qilinmadi. Iltimos, biroz kuting va yana 'Tasdiqlash' tugmasini bosing.");
-            sendPaymentInstruction(chatId);
+
+            if (attempts >= 2) {
+                request.setStatus(RequestStatus.PENDING_SCREENSHOT);
+                requestRepository.save(request);
+                messageSender.sendMessage(chatId, "To‘lov hali qabul qilinmadi. Iltimos, to‘lov chekining skrinshotini yuboring.");
+                sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
+            } else {
+                messageSender.sendMessage(chatId, "To‘lov hali qabul qilinmadi. Iltimos, biroz kuting va yana 'Tasdiqlash' tugmasini bosing.");
+                sendPaymentInstruction(chatId);
+            }
         }
+    }
+
+    public void handleScreenshotApproval(Long chatId, Long requestId, boolean approve) {
+        HizmatRequest request = requestRepository.findByChatIdAndStatus(chatId,RequestStatus.PENDING_SCREENSHOT)
+                .orElse(null);
+        if (request == null) {
+            logger.error("No request found for ID {}", requestId);
+            adminLogBotService.sendLog("❌ Xatolik: So‘rov topilmadi. ID: " + requestId);
+            return;
+        }
+
+        AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
+                .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
+
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        long amount = request.getCurrency().equals(Currency.RUB) ?
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 : request.getUniqueAmount();
+
+        if (approve) {
+            request.setStatus(RequestStatus.APPROVED);
+            requestRepository.save(request);
+
+            boolean transferSuccessful = transferToPlatform(request, adminCard);
+            if (transferSuccessful) {
+                UserBalance balance = userBalanceRepository.findById(chatId)
+                        .orElseGet(() -> {
+                            UserBalance newBalance = UserBalance.builder()
+                                    .chatId(chatId)
+                                    .tickets(0L)
+                                    .balance(BigDecimal.ZERO)
+                                    .build();
+                            return userBalanceRepository.save(newBalance);
+                        });
+                long tickets = request.getAmount() / 30_000;
+                if (tickets > 0) {
+                    lotteryService.awardTickets(chatId, request.getAmount());
+                }
+
+                bonusService.creditReferral(chatId, request.getAmount());
+
+                String logMessage = String.format(
+                        "📅 [%s] To‘lov skrinshoti tasdiqlandi ✅\n" +
+                                "👤 Chat ID: %s\n" +
+                                "🌐 Platforma: %s\n" +
+                                "🆔 Foydalanuvchi ID: %s\n" +
+                                "📛 Ism: %s\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
+                                "💳 Karta raqami: %s\n" +
+                                "🔐 Admin kartasi: %s\n" +
+                                "📌 Tranzaksiya ID: %s\n" +
+                                "🧾 Hisob ID: %d\n" +
+                                "🎟️ Chiptalar: %d\n" +
+                                "📋 So‘rov ID: %d",
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                        chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                        request.getUniqueAmount(), amount, request.getCardNumber(),
+                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
+                        tickets, request.getId());
+
+                adminLogBotService.sendLog(logMessage);
+                messageSender.sendMessage(chatId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
+                        (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
+            } else {
+                String errorLogMessage = String.format(
+                        "📅 [%s] To‘lov skrinshoti tasdiqlangan, lekin transfer xatosi ❌\n" +
+                                "👤 Chat ID: %s\n" +
+                                "🌐 Platforma: %s\n" +
+                                "🆔 Foydalanuvchi ID: %s\n" +
+                                "📛 Ism: %s\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
+                                "💳 Karta raqami: %s\n" +
+                                "🔐 Admin kartasi: %s\n" +
+                                "📌 Tranzaksiya ID: %s\n" +
+                                "🧾 Hisob ID: %d\n" +
+                                "📋 So‘rov ID: %d",
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                        chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                        request.getUniqueAmount(), amount, request.getCardNumber(),
+                        adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
+                        request.getId());
+                adminLogBotService.sendLog(errorLogMessage);
+                messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
+            }
+        } else {
+            request.setStatus(RequestStatus.CANCELED);
+            requestRepository.save(request);
+
+            String logMessage = String.format(
+                    "📅 [%s] To‘lov skrinshoti rad etildi ❌\n" +
+                            "👤 Chat ID: %s\n" +
+                            "🌐 Platforma: %s\n" +
+                            "🆔 Foydalanuvchi ID: %s\n" +
+                            "📛 Ism: %s\n" +
+                            "💸 Miqdor: %,d UZS\n" +
+                            "💸 Miqdor: %,d RUB\n" +
+                            "💳 Karta raqami: %s\n" +
+                            "🔐 Admin kartasi: %s\n" +
+                            "📌 Tranzaksiya ID: %s\n" +
+                            "🧾 Hisob ID: %d\n" +
+                            "📋 So‘rov ID: %d",
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                    request.getUniqueAmount(), amount, request.getCardNumber(),
+                    adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
+                    request.getId());
+
+            adminLogBotService.sendLog(logMessage);
+            messageSender.sendMessage(chatId, "❌ To‘lov so‘rovingiz rad etildi. Iltimos, qayta urinib ko‘ring.");
+        }
+
+        sessionService.clearMessageIds(chatId);
+        sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
+        sendMainMenu(chatId);
     }
 
     private boolean transferToPlatform(HizmatRequest request, AdminCard adminCard) {
@@ -564,44 +708,47 @@ public class TopUpService {
         AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
                 .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
 
+        int attempts = Integer.parseInt(sessionService.getUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0"));
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
 
         String messageText;
         if (request.getCurrency().equals(Currency.RUB)) {
-            long    amount = BigDecimal.valueOf(request.getUniqueAmount())
+            long amount = BigDecimal.valueOf(request.getUniqueAmount())
                     .multiply(latest.getUzsToRub())
-                    .longValue()/1000;
-            messageText=String.format(
+                    .longValue() / 1000;
+            messageText = String.format(
                     "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
                             "Karta: %s\n" +
                             "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
                             "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
                             "1000 UZS ----> %s RUB kurs narxida\n\n" +
                             "Sizga %s RUB tushadi \n\n" +
-                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida 'Tasdiqlash' tugmasini bosing!\n" +
+                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida '%s' tugmasini bosing!\n" +
                             "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
                             "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
                             "TG_ID: %d #%d",
                     request.getUniqueAmount(), adminCard.getCardNumber(),
-                    request.getAmount(), request.getUniqueAmount(), latest.getUzsToRub(), amount,chatId, request.getId());
-        }else {
+                    request.getAmount(), request.getUniqueAmount(), latest.getUzsToRub(), amount,
+                    attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
+        } else {
             messageText = String.format(
                     "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
                             "Karta: %s\n" +
                             "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
                             "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
-                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida 'Tasdiqlash' tugmasini bosing!\n" +
+                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida '%s' tugmasini bosing!\n" +
                             "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
                             "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
                             "TG_ID: %d #%d",
                     request.getUniqueAmount(), adminCard.getCardNumber(),
-                    request.getAmount(), request.getUniqueAmount(), chatId, request.getId());
+                    request.getAmount(), request.getUniqueAmount(),
+                    attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
         }
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(messageText);
-        message.setReplyMarkup(createPaymentConfirmKeyboard());
+        message.setReplyMarkup(createPaymentConfirmKeyboard(attempts));
         messageSender.sendMessage(message, chatId);
 
         List<Integer> messageIds = sessionService.getMessageIds(chatId);
@@ -613,6 +760,7 @@ public class TopUpService {
             messageSender.sendMessage(chatId, "Xatolik: Xabar ID si topilmadi. Iltimos, qayta urinib ko‘ring.");
         }
     }
+
 
     private long generateUniqueAmount(long baseAmount) {
         Random random = new Random();
@@ -697,6 +845,7 @@ public class TopUpService {
     private void sendMainMenu(Long chatId) {
         sessionService.clearSession(chatId);
         sessionService.setUserState(chatId, "MAIN_MENU");
+        sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText("Xush kelibsiz! Operatsiyani tanlang:");
@@ -771,7 +920,7 @@ public class TopUpService {
 
             for (String card : distinctCards) {
                 InlineKeyboardButton button = createButton(maskCard(card), "TOPUP_PAST_CARD:" + card);
-                rows.add(Collections.singletonList(button)); // One button per row
+                rows.add(Collections.singletonList(button));
             }
         }
 
@@ -779,7 +928,6 @@ public class TopUpService {
         markup.setKeyboard(rows);
         return markup;
     }
-
 
     private InlineKeyboardMarkup createApprovalKeyboard() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
@@ -814,10 +962,12 @@ public class TopUpService {
         return markup;
     }
 
-    private InlineKeyboardMarkup createPaymentConfirmKeyboard() {
+    private InlineKeyboardMarkup createPaymentConfirmKeyboard(int attempts) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(List.of(createButton("✅ Tasdiqlash", "TOPUP_PAYMENT_CONFIRM")));
+        String buttonText = attempts >= 2 ? "📷 Skrinshot yuborish" : "✅ Tasdiqlash";
+        String callbackData = attempts >= 2 ? "TOPUP_SEND_SCREENSHOT" : "TOPUP_PAYMENT_CONFIRM";
+        rows.add(List.of(createButton(buttonText, callbackData)));
         rows.add(createNavigationButtons());
         markup.setKeyboard(rows);
         return markup;

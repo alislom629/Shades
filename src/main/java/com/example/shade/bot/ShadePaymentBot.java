@@ -11,13 +11,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
+import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +38,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private final BlockedUserRepository blockedUserRepository;
     private final MessageSender messageSender;
     private final UserSessionService sessionService;
+    private final AdminLogBotService adminLogBotService;
 
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -77,19 +83,78 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 logger.warn("Received null update");
                 return;
             }
-            Long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
+            Long chatId = null;
+            if (update.hasMessage()) {
+                chatId = update.getMessage().getChatId();
+            } else if (update.hasCallbackQuery()) {
+                chatId = update.getCallbackQuery().getMessage().getChatId();
+            } else if (update.hasMyChatMember()) {
+                chatId = update.getMyChatMember().getChat().getId();
+            }
+            if (chatId == null) {
+                logger.warn("No chatId found in update: {}", update);
+                return;
+            }
             if (blockedUserRepository.existsByChatId(chatId)) {
                 logger.info("Blocked user {} attempted to interact", chatId);
                 return; // Silently ignore if user is blocked
             }
             if (update.hasMessage() && update.getMessage().hasText()) {
                 handleTextMessage(update.getMessage().getText(), chatId);
+            } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
+                String state = sessionService.getUserState(chatId);
+                if (!"TOPUP_AWAITING_SCREENSHOT".equals(state)) {
+                    logger.warn("Photo received in wrong state for chatId {}: {}", chatId, state);
+                    messageSender.sendMessage(chatId, "Iltimos, avval to‘lov so‘rovini yakunlang.");
+                    return;
+                }
+                PhotoSize photo = update.getMessage().getPhoto().get(update.getMessage().getPhoto().size() - 1); // Get highest resolution
+                if (photo.getFileId() == null || photo.getFileId().isEmpty()) {
+                    logger.error("Invalid photo file ID for chatId {}", chatId);
+                    messageSender.sendMessage(chatId, "Xatolik: Yuklangan rasm fayli noto‘g‘ri. Iltimos, qayta urinib ko‘ring.");
+                    return;
+                }
+                GetFile getFile = new GetFile();
+                getFile.setFileId(photo.getFileId());
+                File downloadedFile = null;
+                try {
+                    org.telegram.telegrambots.meta.api.objects.File file = execute(getFile);
+                    downloadedFile = downloadFile(file);
+                    SendPhoto sendPhoto = new SendPhoto();
+                    sendPhoto.setPhoto(new InputFile(downloadedFile));
+                    sendPhoto.setCaption("Screenshot from user: " + chatId);
+                    sendPhoto.setReplyMarkup(createScreenshotMarkup(chatId));
+                    adminLogBotService.sendScreenshotRequest(sendPhoto, chatId);
+                    messageSender.sendMessage(chatId, "Rasm yuborildi. Admin tasdiqlashini kuting.");
+                } catch (TelegramApiException e) {
+                    logger.error("Failed to process photo for chatId {}: {}", chatId, e.getMessage());
+                    messageSender.sendMessage(chatId, "Xatolik: Rasmni yuborishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
+                } finally {
+                    if (downloadedFile != null && downloadedFile.exists()) {
+                        if (downloadedFile.delete()) {
+                            logger.info("Deleted temporary file for chatId {}", chatId);
+                        } else {
+                            logger.warn("Failed to delete temporary file for chatId {}", chatId);
+                        }
+                    }
+                }
             } else if (update.hasCallbackQuery()) {
                 handleCallbackQuery(update.getCallbackQuery().getData(), chatId);
             }
         } catch (Exception e) {
             logger.error("Error processing update: {}", update, e);
         }
+    }
+
+    private InlineKeyboardMarkup createScreenshotMarkup(Long chatId) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton("✅ Approve", "SCREENSHOT_APPROVE:" + chatId),
+                createButton("❌ Reject", "SCREENSHOT_REJECT:" + chatId)
+        ));
+        markup.setKeyboard(rows);
+        return markup;
     }
 
     private void handleTextMessage(String messageText, Long chatId) {

@@ -1,20 +1,25 @@
 package com.example.shade.service;
 
 import com.example.shade.bot.AdminTelegramMessageSender;
-import com.example.shade.bot.MessageSender;
-import com.example.shade.model.AdminChat;
+import com.example.shade.model.*;
+import com.example.shade.repository.AdminCardRepository;
 import com.example.shade.repository.AdminChatRepository;
+import com.example.shade.repository.ExchangeRateRepository;
+import com.example.shade.repository.HizmatRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,24 +27,87 @@ public class AdminLogBotService {
     private static final Logger logger = LoggerFactory.getLogger(AdminLogBotService.class);
     private final AdminTelegramMessageSender adminTelegramMessageSender;
     private final AdminChatRepository adminChatRepository;
+    private final HizmatRequestRepository requestRepository;
+    private final ExchangeRateRepository exchangeRateRepository;
+    private final AdminCardRepository adminCardRepository;
 
-    public void registerAdmin(Long chatId,Integer messageId) {
+    public void sendScreenshotRequest(SendPhoto sendPhoto, Long userChatId) {
+        if (sendPhoto == null || sendPhoto.getPhoto() == null ) {
+            logger.error("Invalid SendPhoto object or file for userChatId {}", userChatId);
+            return;
+        }
+        var adminChats = adminChatRepository.findByReceiveNotificationsTrue();
+        if (adminChats.isEmpty()) {
+            logger.warn("No admin chat IDs with notifications enabled to send screenshot for userChatId {}", userChatId);
+            return;
+        }
+
+        // Fetch the latest pending screenshot request for the user
+        HizmatRequest request = requestRepository.findByChatIdAndStatus(userChatId, RequestStatus.PENDING_SCREENSHOT)
+                .orElse(null);
+        if (request == null) {
+            logger.error("No pending screenshot request found for userChatId {}", userChatId);
+            sendToAdmins("❌ No pending screenshot request found for userChatId: " + userChatId);
+            return;
+        }
+
+        // Calculate RUB amount if needed
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        long amountRub = request.getCurrency().equals(Currency.RUB) ?
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 : request.getUniqueAmount();
+
+        // Format log message as photo caption
+        String logMessage = String.format(
+                "📅 [%s] To‘lov skrinshoti keldi 📷\n" +
+                        "👤 Chat ID: %s\n" +
+                        "🌐 Platforma: %s\n" +
+                        "🆔 Foydalanuvchi ID: %s\n" +
+                        "📛 Ism: %s\n" +
+                        "💸 Miqdor: %,d UZS\n" +
+                        "💸 Miqdor: %,d RUB\n" +
+                        "💳 Karta raqami: %s\n" +
+                        "🔐 Admin kartasi: %s\n" +
+                        "📌 Tranzaksiya ID: %s\n" +
+                        "🧾 Hisob ID: %d\n" +
+                        "📋 Hizmat requestId: %d",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                userChatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                request.getUniqueAmount(), amountRub, request.getCardNumber(),
+                request.getAdminCardId() != null ? adminCardRepository.findById(request.getAdminCardId()).map(AdminCard::getCardNumber).orElse("N/A") : "N/A",
+                request.getTransactionId(), request.getBillId() != null ? request.getBillId() : 0,
+                request.getId());
+
+        // Set log message as photo caption
+        sendPhoto.setCaption(logMessage);
+
+        // Send screenshot with log caption to admins
+        for (AdminChat adminChat : adminChats) {
+            try {
+                sendPhoto.setChatId(adminChat.getChatId().toString());
+                adminTelegramMessageSender.sendScreenshotRequest(sendPhoto, adminChat.getChatId());
+                logger.info("Sent screenshot with log caption to admin chatId {} for userChatId {}", adminChat.getChatId(), userChatId);
+            } catch (Exception e) {
+                logger.error("Failed to send screenshot with log caption to admin chatId {} for userChatId {}: {}",
+                        adminChat.getChatId(), userChatId, e.getMessage());
+            }
+        }
+    }
+
+    public void registerAdmin(Long chatId, Integer messageId) {
         AdminChat adminChat = adminChatRepository.findById(chatId)
                 .orElse(null);
-        String message="";
+        String message = "";
         if (adminChat == null) {
-            //here we should call bot clean  method
-            adminTelegramMessageSender.clearBotData(chatId,messageId);
+            adminTelegramMessageSender.clearBotData(chatId, messageId);
         }
-        if (!adminChat.isReceiveNotifications()) {
+        if (adminChat != null && !adminChat.isReceiveNotifications()) {
             adminChatRepository.delete(adminChat);
-            //here we should call bot clean  method
-            adminTelegramMessageSender.clearBotData(chatId,messageId);
-
+            adminTelegramMessageSender.clearBotData(chatId, messageId);
             logger.info("Deleted AdminChat for chatId {} due to disabled notifications or unauthorized access", chatId);
-
-
-        } else {
+        } else if (adminChat != null) {
             logger.info("ChatId {} already registered as admin", chatId);
             message = "✅ Foydalanuvchi qaytdi";
         }

@@ -51,19 +51,18 @@ public class AdminTelegramMessageSender {
         }
     }
 
-    public void sendPhoto(SendPhoto sendPhoto, Long chatId) {
+    public void sendScreenshotRequest(SendPhoto sendPhoto, Long chatId) {
         if (bot == null) {
             logger.error("Bot not set for AdminTelegramMessageSender for chatId: {}", chatId);
             return;
         }
         try {
             bot.execute(sendPhoto);
-            logger.info("Sent photo to admin chatId {} with caption: {}", chatId, sendPhoto.getCaption());
+            logger.info("Sent screenshot request to admin chatId {}: {}", chatId, sendPhoto.getCaption());
         } catch (TelegramApiException e) {
-            logger.error("Failed to send photo to admin chatId {}: {}", chatId, e.getMessage());
+            logger.error("Failed to send screenshot request to admin chatId {}: {}", chatId, e.getMessage());
         }
     }
-
     public void clearBotData(Long chatId, Integer messageId) {
         if (bot == null) {
             logger.error("Bot not set for AdminTelegramMessageSender for chatId: {}", chatId);
