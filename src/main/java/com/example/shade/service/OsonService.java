@@ -30,7 +30,7 @@ public class OsonService {
     private String authToken;
 
     private OsonConfig getConfig() {
-        return osonConfigRepository.findById(1L)
+        return osonConfigRepository.findByPrimaryConfigTrue()
                 .orElseThrow(() -> new IllegalStateException("Oson configuration not found"));
     }
 

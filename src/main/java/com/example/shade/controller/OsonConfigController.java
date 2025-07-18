@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Base64;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/oson/config")
@@ -35,8 +36,11 @@ public class OsonConfigController {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
-        if (config.getId() == null) {
-            config.setId(1L); // Fixed ID for single config
+        if (config.isPrimaryConfig()) {
+            osonConfigRepository.findByPrimaryConfigTrue().ifPresent(existing -> {
+                existing.setPrimaryConfig(false);
+                osonConfigRepository.save(existing);
+            });
         }
 
         try {
@@ -49,15 +53,15 @@ public class OsonConfigController {
         }
     }
 
-    @GetMapping
-    public ResponseEntity<?> getOsonConfig(HttpServletRequest request) {
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getOsonConfig(HttpServletRequest request, @PathVariable Long id) {
         if (!authenticate(request)) {
-            logger.warn("Unauthorized attempt to retrieve Oson config");
+            logger.warn("Unauthorized attempt to retrieve Oson config ID: {}", id);
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
         try {
-            OsonConfig config = osonConfigRepository.findById(1L)
+            OsonConfig config = osonConfigRepository.findById(id)
                     .orElseThrow(() -> new IllegalStateException("Oson config not found"));
             logger.info("Oson config retrieved successfully: {}", config);
             return ResponseEntity.ok(config);
@@ -70,22 +74,47 @@ public class OsonConfigController {
         }
     }
 
-    @PutMapping
-    public ResponseEntity<String> updateOsonConfig(HttpServletRequest request, @RequestBody OsonConfig config) {
+    @GetMapping
+    public ResponseEntity<?> getAllOsonConfigs(HttpServletRequest request) {
         if (!authenticate(request)) {
-            logger.warn("Unauthorized attempt to update Oson config");
+            logger.warn("Unauthorized attempt to retrieve all Oson configs");
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
-        if (config.getId() == null || config.getId() != 1L) {
+        try {
+            List<OsonConfig> configs = osonConfigRepository.findAll();
+            logger.info("Retrieved {} Oson configs", configs.size());
+            return ResponseEntity.ok(configs);
+        } catch (Exception e) {
+            logger.error("Error retrieving Oson configs: {}", e.getMessage());
+            return ResponseEntity.status(500).body("Error retrieving Oson configs: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<String> updateOsonConfig(HttpServletRequest request, @PathVariable Long id, @RequestBody OsonConfig config) {
+        if (!authenticate(request)) {
+            logger.warn("Unauthorized attempt to update Oson config ID: {}", id);
+            return ResponseEntity.status(401).body("Invalid credentials");
+        }
+
+        if (config.getId() == null || !config.getId().equals(id)) {
             logger.warn("Invalid ID for Oson config update: {}", config.getId());
-            return ResponseEntity.status(400).body("Invalid or missing ID, must be 1");
+            return ResponseEntity.status(400).body("Invalid or missing ID");
         }
 
         try {
-            if (!osonConfigRepository.existsById(1L)) {
-                logger.error("Oson config not found for update");
+            if (!osonConfigRepository.existsById(id)) {
+                logger.error("Oson config not found for update ID: {}", id);
                 return ResponseEntity.status(404).body("Oson config not found");
+            }
+            if (config.isPrimaryConfig()) {
+                osonConfigRepository.findByPrimaryConfigTrue().ifPresent(existing -> {
+                    if (!existing.getId().equals(id)) {
+                        existing.setPrimaryConfig(false);
+                        osonConfigRepository.save(existing);
+                    }
+                });
             }
             osonConfigRepository.save(config);
             logger.info("Oson config updated successfully: {}", config);
@@ -96,21 +125,55 @@ public class OsonConfigController {
         }
     }
 
-    @DeleteMapping
-    public ResponseEntity<String> deleteOsonConfig(HttpServletRequest request) {
+    @PutMapping("/{id}/set-primary")
+    public ResponseEntity<String> setPrimaryConfig(HttpServletRequest request, @PathVariable Long id) {
         if (!authenticate(request)) {
-            logger.warn("Unauthorized attempt to delete Oson config");
+            logger.warn("Unauthorized attempt to set primary Oson config ID: {}", id);
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
         try {
-            if (!osonConfigRepository.existsById(1L)) {
-                logger.error("Oson config not found for deletion");
-                return ResponseEntity.status(404).body("Oson config not found");
+            OsonConfig config = osonConfigRepository.findById(id)
+                    .orElseThrow(() -> new IllegalStateException("Oson config not found"));
+            osonConfigRepository.findByPrimaryConfigTrue().ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    existing.setPrimaryConfig(false);
+                    osonConfigRepository.save(existing);
+                }
+            });
+            config.setPrimaryConfig(true);
+            osonConfigRepository.save(config);
+            logger.info("Oson config ID: {} set as primary", id);
+            return ResponseEntity.ok("Oson config set as primary");
+        } catch (IllegalStateException e) {
+            logger.error("Oson config not found: {}", e.getMessage());
+            return ResponseEntity.status(404).body("Oson config not found");
+        } catch (Exception e) {
+            logger.error("Error setting primary Oson config: {}", e.getMessage());
+            return ResponseEntity.status(500).body("Error setting primary Oson config: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteOsonConfig(HttpServletRequest request, @PathVariable Long id) {
+        if (!authenticate(request)) {
+            logger.warn("Unauthorized attempt to delete Oson config ID: {}", id);
+            return ResponseEntity.status(401).body("Invalid credentials");
+        }
+
+        try {
+            OsonConfig config = osonConfigRepository.findById(id)
+                    .orElseThrow(() -> new IllegalStateException("Oson config not found"));
+            if (config.isPrimaryConfig()) {
+                logger.error("Cannot delete primary Oson config ID: {}", id);
+                return ResponseEntity.status(400).body("Cannot delete primary Oson config");
             }
-            osonConfigRepository.deleteById(1L);
-            logger.info("Oson config deleted successfully");
+            osonConfigRepository.deleteById(id);
+            logger.info("Oson config deleted successfully ID: {}", id);
             return ResponseEntity.ok("Oson config deleted successfully");
+        } catch (IllegalStateException e) {
+            logger.error("Oson config not found: {}", e.getMessage());
+            return ResponseEntity.status(404).body("Oson config not found");
         } catch (Exception e) {
             logger.error("Error deleting Oson config: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error deleting Oson config: " + e.getMessage());

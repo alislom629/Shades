@@ -28,6 +28,7 @@ public class AdminCard {
     @Column(name = "last_used")
     private LocalDateTime lastUsed;
 
-    @Column(nullable = false)
-    private boolean main;
+    @ManyToOne
+    @JoinColumn(name = "oson_config_id", nullable = false)
+    private OsonConfig osonConfig;
 }

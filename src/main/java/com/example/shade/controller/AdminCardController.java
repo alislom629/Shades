@@ -1,8 +1,9 @@
 package com.example.shade.controller;
 
 import com.example.shade.model.AdminCard;
+import com.example.shade.model.OsonConfig;
 import com.example.shade.repository.AdminCardRepository;
-import com.example.shade.service.OsonService;
+import com.example.shade.repository.OsonConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +24,7 @@ import java.util.Map;
 public class AdminCardController {
     private static final Logger logger = LoggerFactory.getLogger(AdminCardController.class);
     private final AdminCardRepository adminCardRepository;
-    private final OsonService osonService;
+    private final OsonConfigRepository osonConfigRepository;
 
     private boolean authenticate(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -55,19 +56,21 @@ public class AdminCardController {
         return ResponseEntity.ok(adminCardRepository.findAll());
     }
 
-    @GetMapping("/cards-and-wallet")
-    public ResponseEntity<Map<String, Object>> getCardsAndWalletBalance(HttpServletRequest request) {
+    @GetMapping("/cards/oson/{osonConfigId}")
+    public ResponseEntity<List<AdminCard>> getCardsByOsonConfig(HttpServletRequest request, @PathVariable Long osonConfigId) {
         if (!authenticate(request)) {
-            logger.warn("Unauthorized access to get cards and wallet balance");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
+            logger.warn("Unauthorized access to get cards for OsonConfig ID: {}", osonConfigId);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
-        logger.info("Fetching cards and wallet balance");
-        Map<String, Object> result = osonService.getCardsAndWalletBalance();
-        if ("ERROR".equals(result.get("status"))) {
-            logger.error("Failed to fetch cards and wallet balance: {}", result.get("error"));
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
-        }
-        return ResponseEntity.ok(result);
+        return osonConfigRepository.findById(osonConfigId)
+                .map(osonConfig -> {
+                    logger.info("Fetching cards for OsonConfig ID: {}", osonConfigId);
+                    return ResponseEntity.ok(adminCardRepository.findByOsonConfig(osonConfig));
+                })
+                .orElseGet(() -> {
+                    logger.warn("OsonConfig not found for ID: {}", osonConfigId);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                });
     }
 
     @GetMapping("/cards/{id}")
@@ -85,21 +88,28 @@ public class AdminCardController {
                 });
     }
 
-    @PostMapping("/cards")
-    public ResponseEntity<AdminCard> addCard(@RequestBody AdminCard card, HttpServletRequest request) {
+    @PostMapping("/cards/oson/{osonConfigId}")
+    public ResponseEntity<AdminCard> addCard(@PathVariable Long osonConfigId, @RequestBody AdminCard card, HttpServletRequest request) {
         if (!authenticate(request)) {
-            logger.warn("Unauthorized access to add card");
+            logger.warn("Unauthorized access to add card for OsonConfig ID: {}", osonConfigId);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
         if (!card.getCardNumber().matches("\\d{16}")) {
             logger.warn("Invalid card number format: {}", card.getCardNumber());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
-        card.setCardNumber(card.getCardNumber().replaceAll("\\s+", ""));
-        card.setMain(false); // New cards are not main by default
-        logger.info("Adding new admin card: {}", maskCard(card.getCardNumber()));
-        AdminCard savedCard = adminCardRepository.save(card);
-        return ResponseEntity.ok(savedCard);
+        return osonConfigRepository.findById(osonConfigId)
+                .map(osonConfig -> {
+                    card.setCardNumber(card.getCardNumber().replaceAll("\\s+", ""));
+                    card.setOsonConfig(osonConfig);
+                    logger.info("Adding new admin card for OsonConfig ID: {}: {}", osonConfigId, maskCard(card.getCardNumber()));
+                    AdminCard savedCard = adminCardRepository.save(card);
+                    return ResponseEntity.ok(savedCard);
+                })
+                .orElseGet(() -> {
+                    logger.warn("OsonConfig not found for ID: {}", osonConfigId);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                });
     }
 
     @PutMapping("/cards/{id}")
@@ -118,41 +128,16 @@ public class AdminCardController {
                     existing.setOwnerName(card.getOwnerName());
                     existing.setLastUsed(card.getLastUsed());
                     existing.setBalance(card.getBalance());
-                    // Preserve existing main status unless explicitly changed via set-main
+                    if (card.getOsonConfig() != null && card.getOsonConfig().getId() != null) {
+                        osonConfigRepository.findById(card.getOsonConfig().getId())
+                                .ifPresent(existing::setOsonConfig);
+                    }
                     logger.info("Updating card ID: {}, new card number: {}", id, maskCard(card.getCardNumber()));
                     return ResponseEntity.ok(adminCardRepository.save(existing));
                 })
                 .orElseGet(() -> {
                     logger.warn("Card not found for update, ID: {}", id);
                     return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
-                });
-    }
-
-    @PutMapping("/cards/{id}/set-main")
-    public ResponseEntity<? extends Map<String, ? extends Object>> setMainCard(@PathVariable Long id, HttpServletRequest request) {
-        if (!authenticate(request)) {
-            logger.warn("Unauthorized access to set main card ID: {}", id);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid credentials"));
-        }
-        return adminCardRepository.findById(id)
-                .map(card -> {
-                    // Unset previous main card
-                    adminCardRepository.findByMainTrue().ifPresent(mainCard -> {
-                        if (!mainCard.getId().equals(id)) {
-                            mainCard.setMain(false);
-                            adminCardRepository.save(mainCard);
-                            logger.info("Unset previous main card: {}", maskCard(mainCard.getCardNumber()));
-                        }
-                    });
-                    // Set new main card
-                    card.setMain(true);
-                    adminCardRepository.save(card);
-                    logger.info("Card set as main: {}", maskCard(card.getCardNumber()));
-                    return ResponseEntity.ok(Map.of("success", true, "message", "Card set as main"));
-                })
-                .orElseGet(() -> {
-                    logger.warn("Card not found to set as main, ID: {}", id);
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Card not found"));
                 });
     }
 
@@ -164,10 +149,13 @@ public class AdminCardController {
         }
         return adminCardRepository.findById(id)
                 .map(card -> {
-                    if (card.isMain()) {
-                        logger.error("Cannot delete main card: {}", maskCard(card.getCardNumber()));
-                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                .body(Map.of("error", "Cannot delete the main card"));
+                    if (card.getOsonConfig().isPrimaryConfig()) {
+                        long cardCount = adminCardRepository.findByOsonConfig(card.getOsonConfig()).size();
+                        if (cardCount <= 1) {
+                            logger.error("Cannot delete last card of primary OsonConfig ID: {}", card.getOsonConfig().getId());
+                            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                    .body(Map.of("error", "Cannot delete the last card of the primary OsonConfig"));
+                        }
                     }
                     adminCardRepository.deleteById(id);
                     logger.info("Deleted card ID: {}", id);

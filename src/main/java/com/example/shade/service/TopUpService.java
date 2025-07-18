@@ -335,8 +335,6 @@ public class TopUpService {
         }
 
         String platformName = sessionService.getUserData(chatId, "platform").replace("_", "");
-        Platform platform = platformRepository.findByName(platformName)
-                .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
 
         AdminCard adminCard = adminCardRepository.findLeastRecentlyUsed()
                 .orElseThrow(() -> new IllegalStateException("No admin cards available"));
