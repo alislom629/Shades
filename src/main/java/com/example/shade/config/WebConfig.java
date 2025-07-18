@@ -18,7 +18,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins("*") // Allow ALL origins
                 .allowedMethods("*") // Allow ALL methods
                 .allowedHeaders("*")
-                .allowCredentials(false); // Must be false when using "*"
+                .allowCredentials(true).maxAge(3600);; // Must be false when using "*"
     }
 
 }
