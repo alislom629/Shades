@@ -14,5 +14,8 @@ public class ShadeApplication {
     public static void main(String[] args) {
         SpringApplication.run(ShadeApplication.class, args);
     }
-
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
 }

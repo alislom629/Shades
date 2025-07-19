@@ -23,9 +23,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class OsonService {
     private static final Logger logger = LoggerFactory.getLogger(OsonService.class);
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final OsonConfigRepository osonConfigRepository;
-    private final AdminCardRepository adminCardRepository;
     private static final DateTimeFormatter OSON_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX");
     private String authToken;
 
@@ -40,7 +39,6 @@ public class OsonService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("token", config.getApiKey());
         headers.set("User-Agent", "Oson/11.4.9 (uz.oson; build:2; iOS 18.5.0) Alamofire/4.9.1");
         headers.set("Accept-Language", "en-UZ;q=1.0, ru-UZ;q=0.9");
         headers.set("Accept-Encoding", "gzip;q=1.0, compress;q=0.5");
@@ -84,66 +82,6 @@ public class OsonService {
         return authToken;
     }
 
-    public Map<String, Object> getCardsAndWalletBalance() {
-        OsonConfig config = getConfig();
-        String cardUrl = config.getApiUrl() + "/api/user/card_v2";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("token", getAuthToken());
-        headers.set("User-Agent", "Oson/11.4.9 (uz.oson; build:2; iOS 18.5.0) Alamofire/4.9.1");
-        headers.set("Accept-Language", "en-UZ;q=1.0, ru-UZ;q=0.9");
-        headers.set("Accept-Encoding", "gzip;q=1.0, compress;q=0.5");
-        headers.set("Connection", "keep-alive");
-
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-        Map<String, Object> result = new HashMap<>();
-
-        // Fetch cards
-        try {
-            ResponseEntity<Map> cardResponse = restTemplate.exchange(cardUrl, HttpMethod.GET, entity, Map.class);
-            Map<String, Object> cardResponseBody = cardResponse.getBody();
-            if (cardResponse.getStatusCode().is2xxSuccessful() && cardResponseBody != null && "0".equals(String.valueOf(cardResponseBody.get("errno")))) {
-                List<Map<String, Object>> cards = (List<Map<String, Object>>) cardResponseBody.get("array");
-                List<Map<String, Object>> cardDetails = new ArrayList<>();
-                for (Map<String, Object> card : cards) {
-                    String number = (String) card.get("number");
-                    String ownerName = (String) card.get("owner");
-                    Long balance = Long.parseLong(String.valueOf(card.get("balance")));
-                    AdminCard adminCard = adminCardRepository.findByCardNumber(number).orElse(new AdminCard());
-                    adminCard.setCardNumber(number);
-                    adminCard.setBalance(balance);
-                    adminCard.setOwnerName(ownerName);
-                    adminCard.setLastUsed(OffsetDateTime.now().toLocalDateTime());
-                    adminCardRepository.save(adminCard);
-                    cardDetails.add(Map.of(
-                            "cardNumber", number,
-                            "balance", balance / 100.0, // Convert tiyin to UZS
-                            "ownerName", adminCard.getOwnerName() != null ? adminCard.getOwnerName() : "Unknown"
-                    ));
-                }
-                result.put("cards", cardDetails);
-                result.put("status", "SUCCESS");
-            } else {
-                authToken = null;
-                return getCardsAndWalletBalance();
-            }
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 401) {
-                authToken = null;
-                return getCardsAndWalletBalance();
-            }
-            logger.error("HTTP error fetching cards: {}", e.getMessage());
-            result.put("status", "ERROR");
-            result.put("error", "HTTP error fetching cards: " + e.getStatusCode());
-            return result;
-        } catch (Exception e) {
-            authToken = null;
-            return getCardsAndWalletBalance();
-        }
-
-        return result;
-    }
-
     private Long getCardIdByNumber(String cardNumber) {
         OsonConfig config = getConfig();
         String url = config.getApiUrl() + "/api/user/card_v2";
@@ -178,7 +116,7 @@ public class OsonService {
                 authToken = null;
                 return getCardIdByNumber(cardNumber);
             }
-            throw new RuntimeException("Failed to fetch cards: HTTP " + e.getStatusCode());
+            throw new RuntimeException("Failed to fetch cards: HTTP " + e.getStatusCode()+ e.getMessage());
         } catch (Exception e) {
             authToken = null;
             return getCardIdByNumber(cardNumber);
