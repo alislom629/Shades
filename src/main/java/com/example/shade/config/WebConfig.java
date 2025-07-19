@@ -14,12 +14,11 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**") // Apply to all endpoints
-                .allowedOrigins("https://xonpey.uz", "http://localhost:3000")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // OPTIONS is crucial for preflight
+        registry.addMapping("/api/**")
+                .allowedOrigins("*") // Allow ALL origins
+                .allowedMethods("*") // Allow ALL methods
                 .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(3600);
+                .allowCredentials(false); // Must be false when using "*"
     }
 
 }
