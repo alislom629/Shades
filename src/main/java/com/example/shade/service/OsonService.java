@@ -124,10 +124,8 @@ public class OsonService {
                 result.put("cards", cardDetails);
                 result.put("status", "SUCCESS");
             } else {
-                logger.error("Failed to fetch cards: {}", cardResponseBody != null ? cardResponseBody.get("errstr") : "No response body");
-                result.put("status", "ERROR");
-                result.put("error", "Failed to fetch cards: " + (cardResponseBody != null ? cardResponseBody.get("errstr") : "Unknown error"));
-                return result;
+                authToken = null;
+                return getCardsAndWalletBalance();
             }
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 401) {
@@ -139,10 +137,8 @@ public class OsonService {
             result.put("error", "HTTP error fetching cards: " + e.getStatusCode());
             return result;
         } catch (Exception e) {
-            logger.error("Unexpected error fetching cards: {}", e.getMessage());
-            result.put("status", "ERROR");
-            result.put("error", "Unexpected error fetching cards: " + e.getMessage());
-            return result;
+            authToken = null;
+            return getCardsAndWalletBalance();
         }
 
         return result;
@@ -172,25 +168,22 @@ public class OsonService {
                         return Long.valueOf(String.valueOf(card.get("id")));
                     }
                 }
-                logger.warn("No card found with last 4 digits: {}", cardNumber.substring(cardNumber.length() - 4));
                 return null;
             } else {
-                logger.error("Failed to fetch cards: {}", responseBody != null ? responseBody.get("errstr") : "No response body");
-                throw new RuntimeException("Failed to fetch cards: " + (responseBody != null ? responseBody.get("errstr") : "Unknown error"));
+                authToken = null;
+                return getCardIdByNumber(cardNumber);
             }
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 401) {
                 authToken = null;
                 return getCardIdByNumber(cardNumber);
             }
-            logger.error("HTTP error fetching cards: {}", e.getMessage());
             throw new RuntimeException("Failed to fetch cards: HTTP " + e.getStatusCode());
         } catch (Exception e) {
-            logger.error("Unexpected error fetching cards: {}", e.getMessage());
-            throw new RuntimeException("Failed to fetch cards: " + e.getMessage());
+            authToken = null;
+            return getCardIdByNumber(cardNumber);
         }
     }
-
 
     public Map<String, Object> verifyPaymentByAmountAndCard(Long chatId, String platform, String platformUserId, long amount, String userCardNumber, String adminCardId, long uniqueAmount) {
         Map<String, Object> response = new HashMap<>();
@@ -248,7 +241,8 @@ public class OsonService {
                 }
                 response.put("error", "No matching payment found");
             } else {
-                response.put("error", responseBody != null ? responseBody.get("errstr") : "No response body");
+                authToken = null;
+                return verifyPaymentByAmountAndCard(chatId, platform, platformUserId, amount, userCardNumber, adminCardId, uniqueAmount);
             }
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 401) {
@@ -258,8 +252,8 @@ public class OsonService {
             logger.error("HTTP error fetching card history: {}", e.getMessage());
             response.put("error", "HTTP error: " + e.getStatusCode());
         } catch (Exception e) {
-            logger.error("Unexpected error fetching card history: {}", e.getMessage());
-            response.put("error", "Unexpected error: " + e.getMessage());
+            authToken = null;
+            return verifyPaymentByAmountAndCard(chatId, platform, platformUserId, amount, userCardNumber, adminCardId, uniqueAmount);
         }
         return response;
     }
