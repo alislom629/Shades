@@ -536,10 +536,10 @@ public class TopUpService {
 
             boolean transferSuccessful = transferToPlatform(request, adminCard);
             if (transferSuccessful) {
-                UserBalance balance = userBalanceRepository.findById(chatId)
+                UserBalance balance = userBalanceRepository.findById(requestId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
-                                    .chatId(chatId)
+                                    .chatId(requestId)
                                     .tickets(0L)
                                     .balance(BigDecimal.ZERO)
                                     .build();
@@ -547,10 +547,10 @@ public class TopUpService {
                         });
                 long tickets = request.getAmount() / 30_000;
                 if (tickets > 0) {
-                    lotteryService.awardTickets(chatId, request.getAmount());
+                    lotteryService.awardTickets(requestId, request.getAmount());
                 }
 
-                bonusService.creditReferral(chatId, request.getAmount());
+                bonusService.creditReferral(requestId, request.getAmount());
 
                 String logMessage = String.format(
                         "📅 [%s] To‘lov skrinshoti tasdiqlandi ✅\n" +
@@ -567,16 +567,16 @@ public class TopUpService {
                                 "🎟️ Chiptalar: %d\n" +
                                 "📋 So‘rov ID: %d",
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                        requestId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
                         request.getUniqueAmount(), amount, request.getCardNumber(),
                         adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
                         tickets, request.getId());
 
                 adminLogBotService.sendLog(logMessage);
-                messageSender.sendMessage(chatId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
+                messageSender.sendMessage(requestId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
                         (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
             } else {
-                handleTransferFailure(chatId, request, adminCard);
+                handleTransferFailure(requestId, request, adminCard);
             }
         } else {
             request.setStatus(RequestStatus.CANCELED);
@@ -596,18 +596,18 @@ public class TopUpService {
                             "🧾 Hisob ID: %d\n" +
                             "📋 So‘rov ID: %d",
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                    requestId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
                     request.getUniqueAmount(), amount, request.getCardNumber(),
                     adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
                     request.getId());
 
             adminLogBotService.sendLog(logMessage);
-            messageSender.sendMessage(chatId, "❌ To‘lov so‘rovingiz rad etildi. Iltimos, qayta urinib ko‘ring.");
+            messageSender.sendMessage(requestId, "❌ To‘lov so‘rovingiz rad etildi. Iltimos, qayta urinib ko‘ring.");
         }
 
-        sessionService.clearMessageIds(chatId);
-        sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
-        sendMainMenu(chatId);
+        sessionService.clearMessageIds(requestId);
+        sessionService.setUserData(requestId, PAYMENT_ATTEMPTS_KEY, "0");
+        sendMainMenu(requestId);
     }
 
     private boolean transferToPlatform(HizmatRequest request, AdminCard adminCard) {
