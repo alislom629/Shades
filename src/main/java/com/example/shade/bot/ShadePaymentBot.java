@@ -125,7 +125,11 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     sendPhoto.setCaption("Screenshot from user: " + chatId);
                     sendPhoto.setReplyMarkup(createScreenshotMarkup(chatId));
                     adminLogBotService.sendScreenshotRequest(sendPhoto, chatId);
-                    messageSender.sendMessage(chatId, "Rasm yuborildi. Admin tasdiqlashini kuting.");
+                    SendMessage message = new SendMessage();
+                    message.setChatId(chatId);
+                    message.setText("Rasm yuborildi. Admin tasdiqlashini kuting.");
+                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    messageSender.sendMessage( message, chatId);
                 } catch (TelegramApiException e) {
                     logger.error("Failed to process photo for chatId {}: {}", chatId, e.getMessage());
                     messageSender.sendMessage(chatId, "Xatolik: Rasmni yuborishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
@@ -282,6 +286,19 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         rows.add(List.of(createButton("ℹ️ Aloqa", "CONTACT")));
         markup.setKeyboard(rows);
         return markup;
+    }
+    private InlineKeyboardMarkup createBonusMenuKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+    private List<InlineKeyboardButton> createNavigationButtons() {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        buttons.add(createButton("🔙 Orqaga", "BACK"));
+        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        return buttons;
     }
 
     private InlineKeyboardButton createButton(String text, String callback) {
