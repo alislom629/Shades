@@ -868,6 +868,12 @@ public class TopUpService {
             if (i < rubPlatforms.size()) {
                 Platform rubPlatform = rubPlatforms.get(i);
                 row.add(createButton("🇷🇺 " + rubPlatform.getName(), "TOPUP_PLATFORM:" + rubPlatform.getName()));
+            } else {
+                i++;
+                if (i < uzsPlatforms.size() && i<maxRows) {
+                    Platform uzsPlatform = uzsPlatforms.get(i);
+                    row.add(createButton("🇺🇿 " + uzsPlatform.getName(), "TOPUP_PLATFORM:" + uzsPlatform.getName()));
+                }
             }
             if (!row.isEmpty()) {
                 rows.add(row);

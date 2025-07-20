@@ -612,6 +612,12 @@ public class WithdrawService {
                     } else {
                         logger.warn("Skipping invalid RUB platform: {}", rubPlatform);
                     }
+                } else {
+                    i++;
+                    if (i < uzsPlatforms.size() && i<maxRows) {
+                        Platform uzsPlatform = uzsPlatforms.get(i);
+                        row.add(createButton("🇺🇿 " + uzsPlatform.getName(), "WITHDRAW_PLATFORM:" + uzsPlatform.getName()));
+                    }
                 }
                 if (!row.isEmpty()) {
                     rows.add(row);
