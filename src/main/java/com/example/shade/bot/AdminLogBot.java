@@ -192,10 +192,10 @@ public class AdminLogBot extends TelegramLongPollingBot {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             topUpService.handleScreenshotApproval(chatId, requestId, false);
         } else if (callbackData.startsWith("ADMIN_APPROVE_TRANSFER:")) {
-            String requestId = callbackData.split(":")[1];
+            Long requestId = Long.valueOf(callbackData.split(":")[1]);
             bonusService.handleAdminApproveTransfer(chatId, requestId);
         } else if (callbackData.startsWith("ADMIN_DECLINE_TRANSFER:")) {
-            String requestId = callbackData.split(":")[1];
+            Long requestId = Long.valueOf(callbackData.split(":")[1]);
             bonusService.handleAdminDeclineTransfer(chatId, requestId);
         } else if (callbackData.startsWith("ADMIN_REMOVE_TICKETS:")) {
             String userChatId = callbackData.split(":")[1];

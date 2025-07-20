@@ -593,12 +593,12 @@ public class TopUpService {
                             "💳 Karta raqami: %s\n" +
                             "🔐 Admin kartasi: %s\n" +
                             "📌 Tranzaksiya ID: %s\n" +
-                            "🧾 Hisob ID: %d\n" +
+                            "🧾 Admin ID: %d\n" +
                             "📋 So‘rov ID: %d",
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                     requestId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
                     request.getUniqueAmount(), amount, request.getCardNumber(),
-                    adminCard.getCardNumber(), request.getTransactionId(), request.getBillId(),
+                    adminCard.getCardNumber(), request.getTransactionId(), chatId,
                     request.getId());
 
             adminLogBotService.sendLog(logMessage);

@@ -98,12 +98,12 @@ public class BonusService {
             return;
         }
         if (callback.startsWith("ADMIN_APPROVE_TRANSFER:")) {
-            String requestId = callback.split(":")[1];
+            Long requestId = Long.valueOf(callback.split(":")[1]);
             handleAdminApproveTransfer(chatId, requestId);
             return;
         }
         if (callback.startsWith("ADMIN_DECLINE_TRANSFER:")) {
-            String requestId = callback.split(":")[1];
+            Long requestId = Long.valueOf(callback.split(":")[1]);
             handleAdminDeclineTransfer(chatId, requestId);
             return;
         }
@@ -496,13 +496,8 @@ public class BonusService {
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
     }
 
-    public void handleAdminApproveTransfer(Long chatId, String requestId) {
-        AdminChat adminChat = adminChatRepository.findById(chatId).orElse(null);
-        if (adminChat == null || !adminChat.isReceiveNotifications()) {
-            messageSender.sendMessage(chatId, "Sizda bu amalni bajarish uchun ruxsat yo‘q.");
-            return;
-        }
-        HizmatRequest request = requestRepository.findById(Long.parseLong(requestId))
+    public void handleAdminApproveTransfer(Long chatId, Long requestId) {
+        HizmatRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalStateException("Request not found: " + requestId));
         request.setStatus(RequestStatus.APPROVED);
         request.setTransactionId(UUID.randomUUID().toString());
@@ -636,13 +631,8 @@ public class BonusService {
         messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
     }
 
-    public void handleAdminDeclineTransfer(Long chatId, String requestId) {
-        AdminChat adminChat = adminChatRepository.findById(chatId).orElse(null);
-        if (adminChat == null || !adminChat.isReceiveNotifications()) {
-            messageSender.sendMessage(chatId, "Sizda bu amalni bajarish uchun ruxsat yo‘q.");
-            return;
-        }
-        HizmatRequest request = requestRepository.findById(Long.parseLong(requestId))
+    public void handleAdminDeclineTransfer(Long chatId, Long requestId) {
+        HizmatRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalStateException("Request not found: " + requestId));
         request.setStatus(RequestStatus.CANCELED);
         requestRepository.save(request);
