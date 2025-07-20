@@ -100,39 +100,61 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 return;
             }
 
-            // Check if user is blocked
+            // Handle referral for /start ref_ immediately
+            if (update.hasMessage() && update.getMessage().hasText() && update.getMessage().getText().startsWith("/start ref_")) {
+                String messageText = update.getMessage().getText();
+                String referrerIdStr = messageText.substring("/start ref_".length());
+                try {
+                    Long referrerChatId = Long.parseLong(referrerIdStr);
+                    if (!referrerChatId.equals(chatId)) { // Prevent self-referral
+                        if (referralRepository.findByReferredChatId(chatId).isEmpty()) {
+                            Referral referral = new Referral();
+                            referral.setReferrerChatId(referrerChatId);
+                            referral.setReferredChatId(chatId);
+                            referralRepository.save(referral);
+                            logger.info("Referral created: referrerChatId={}, referredChatId={}", referrerChatId, chatId);
+                        } else {
+                            logger.info("Referral not created: user {} already has a referral", chatId);
+                        }
+                    } else {
+                        logger.warn("Self-referral attempt by chatId: {}", chatId);
+                    }
+                } catch (NumberFormatException e) {
+                    logger.error("Invalid referrer ID format: {}", referrerIdStr);
+                }
+            }
+
+            // Check if user is blocked or needs to share phone number
             BlockedUser user = blockedUserRepository.findById(chatId).orElse(null);
-            if (user != null && user.getPhoneNumber() == null) {
-                // User exists but has no phone number (not blocked, just hasn't shared)
-                sessionService.setUserState(chatId, "AWAITING_PHONE_NUMBER");
-                sendPhoneNumberRequest(chatId);
-                return;
-            } else if (user != null && user.getPhoneNumber() != null && user.getPhoneNumber().equals("BLOCKED")) {
-                // User is blocked
+            if (user != null && "BLOCKED".equals(user.getPhoneNumber())) {
                 logger.info("Blocked user {} attempted to interact", chatId);
                 return;
             }
 
-            // If user doesn't exist, create a new entry without phone number
-            if (user == null) {
-                user = BlockedUser.builder().chatId(chatId).build();
+            // If user hasn't shared phone number, prompt for it
+
+
+            // Handle phone number submission
+            if (update.hasMessage() && update.getMessage().hasContact()) {
+                String receivedPhoneNumber = update.getMessage().getContact().getPhoneNumber();
+                user.setPhoneNumber(receivedPhoneNumber);
                 blockedUserRepository.save(user);
+                logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);
+                sessionService.clearSession(chatId); // Clear AWAITING_PHONE_NUMBER state
+                sendMainMenu(chatId, true);
+                return;
+            }
+            if (user == null || user.getPhoneNumber() == null) {
+                if (user == null) {
+                    user = BlockedUser.builder().chatId(chatId).build();
+                    blockedUserRepository.save(user);
+                }
                 sessionService.setUserState(chatId, "AWAITING_PHONE_NUMBER");
                 sendPhoneNumberRequest(chatId);
                 return;
             }
 
-            if (update.hasMessage() && update.getMessage().hasContact()) {
-                // Handle phone number submission
-                String receivedPhoneNumber = update.getMessage().getContact().getPhoneNumber();
-                user.setPhoneNumber(receivedPhoneNumber);
-                blockedUserRepository.save(user);
-                logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);
-                sessionService.setUserState(chatId, null);
-                sendMainMenu(chatId, true);
-                return;
-            }
-
+            // Handle other messages and callbacks
             if (update.hasMessage() && update.getMessage().hasText()) {
                 handleTextMessage(update.getMessage().getText(), chatId);
             } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
@@ -142,7 +164,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     messageSender.sendMessage(chatId, "Iltimos, avval to‘lov so‘rovini yakunlang.");
                     return;
                 }
-                PhotoSize photo = update.getMessage().getPhoto().get(update.getMessage().getPhoto().size() - 1); // Get highest resolution
+                PhotoSize photo = update.getMessage().getPhoto().get(update.getMessage().getPhoto().size() - 1);
                 if (photo.getFileId() == null || photo.getFileId().isEmpty()) {
                     logger.error("Invalid photo file ID for chatId {}", chatId);
                     messageSender.sendMessage(chatId, "Xatolik: Yuklangan rasm fayli noto‘g‘ri. Iltimos, qayta urinib ko‘ring.");
@@ -226,28 +248,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
             sendPhoneNumberRequest(chatId);
             return;
         }
-        if (messageText.startsWith("/start")) {
-            if (messageText.startsWith("/start ref_")) {
-                String referrerIdStr = messageText.substring("/start ref_".length());
-                try {
-                    Long referrerChatId = Long.parseLong(referrerIdStr);
-                    if (!referrerChatId.equals(chatId)) { // Prevent self-referral
-                        if (referralRepository.findByReferredChatId(chatId).isEmpty()) {
-                            Referral referral = new Referral();
-                            referral.setReferrerChatId(referrerChatId);
-                            referral.setReferredChatId(chatId);
-                            referralRepository.save(referral);
-                            logger.info("Referral created: referrerChatId={}, referredChatId={}", referrerChatId, chatId);
-                        } else {
-                            logger.info("Referral not created: user {} already has a referral", chatId);
-                        }
-                    } else {
-                        logger.warn("Self-referral attempt by chatId: {}", chatId);
-                    }
-                } catch (NumberFormatException e) {
-                    logger.error("Invalid referrer ID format: {}", referrerIdStr);
-                }
-            }
+        if (messageText.equals("/start")) {
             sendMainMenu(chatId, true);
         } else if (messageText.equals("/topup")) {
             messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
