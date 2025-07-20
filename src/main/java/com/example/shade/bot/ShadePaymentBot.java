@@ -21,6 +21,7 @@ import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
@@ -131,12 +132,12 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 return;
             }
 
-            // If user hasn't shared phone number, prompt for it
-
-
             // Handle phone number submission
             if (update.hasMessage() && update.getMessage().hasContact()) {
                 String receivedPhoneNumber = update.getMessage().getContact().getPhoneNumber();
+                if (user == null) {
+                    user = BlockedUser.builder().chatId(chatId).build();
+                }
                 user.setPhoneNumber(receivedPhoneNumber);
                 blockedUserRepository.save(user);
                 logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);
@@ -144,6 +145,8 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 sendMainMenu(chatId, true);
                 return;
             }
+
+            // If user hasn't shared phone number, prompt for it
             if (user == null || user.getPhoneNumber() == null) {
                 if (user == null) {
                     user = BlockedUser.builder().chatId(chatId).build();
@@ -336,7 +339,8 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText("Xush kelibsiz! Operatsiyani tanlang:");
-        message.setReplyMarkup(createMainMenuKeyboard());
+        message.setReplyMarkup(new ReplyKeyboardRemove(true));
+        message.setReplyMarkup(createMainMenuKeyboard());// Remove the phone number keyboard
         messageSender.sendMessage(message, chatId);
     }
 
