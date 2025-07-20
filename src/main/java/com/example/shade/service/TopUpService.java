@@ -512,7 +512,7 @@ public class TopUpService {
     }
 
     public void handleScreenshotApproval(Long chatId, Long requestId, boolean approve) {
-        HizmatRequest request = requestRepository.findByChatIdAndStatus(chatId, RequestStatus.PENDING_SCREENSHOT)
+        HizmatRequest request = requestRepository.findByChatIdAndStatus(requestId, RequestStatus.PENDING_SCREENSHOT)
                 .orElse(null);
         if (request == null) {
             logger.error("No request found for ID {}", requestId);
