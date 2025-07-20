@@ -142,11 +142,20 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 blockedUserRepository.save(user);
                 logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);
                 sessionService.clearSession(chatId); // Clear AWAITING_PHONE_NUMBER state
+
+                // Send a message to remove the phone number keyboard
+                SendMessage removeKeyboardMessage = new SendMessage();
+                removeKeyboardMessage.setChatId(chatId);
+                removeKeyboardMessage.setText("Telefon raqamingiz qabul qilindi.");
+                removeKeyboardMessage.setReplyMarkup(new ReplyKeyboardRemove(true));
+                messageSender.sendMessage(removeKeyboardMessage, chatId);
+
+                // Now send the main menu
                 sendMainMenu(chatId, true);
                 return;
             }
 
-            // If user hasn't shared phone number, prompt for it
+            // If user hasn't shared phone number, show menu link
             if (user == null || user.getPhoneNumber() == null) {
                 if (user == null) {
                     user = BlockedUser.builder().chatId(chatId).build();
@@ -212,7 +221,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private void sendPhoneNumberRequest(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Iltimos, telefon raqamingizni yuboring:");
+        message.setText("Iltimos, telefon raqamingizni yuboring yoki menyuga o‘tish uchun quyidagi tugmani bosing:");
         message.setReplyMarkup(createPhoneNumberKeyboard());
         messageSender.sendMessage(message, chatId);
     }
@@ -222,12 +231,18 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         markup.setResizeKeyboard(true);
         markup.setOneTimeKeyboard(true);
         List<KeyboardRow> rows = new ArrayList<>();
-        KeyboardRow row = new KeyboardRow();
-        KeyboardButton button = new KeyboardButton();
-        button.setText("📞 Telefon raqamni yuborish");
-        button.setRequestContact(true);
-        row.add(button);
-        rows.add(row);
+        KeyboardRow row1 = new KeyboardRow();
+        KeyboardButton contactButton = new KeyboardButton();
+        contactButton.setText("📞 Telefon raqamni yuborish");
+        contactButton.setRequestContact(true);
+        row1.add(contactButton);
+        KeyboardRow row2 = new KeyboardRow();
+        KeyboardButton menuButton = new KeyboardButton();
+        menuButton.setText("🏠 Asosiy menyu");
+        menuButton.setRequestContact(false); // Not a contact request
+        row2.add(menuButton);
+        rows.add(row1);
+        rows.add(row2);
         markup.setKeyboard(rows);
         return markup;
     }
@@ -247,7 +262,18 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         logger.info("Processing message from chatId {}: {}", chatId, messageText);
         String state = sessionService.getUserState(chatId);
         if ("AWAITING_PHONE_NUMBER".equals(state)) {
-            messageSender.sendMessage(chatId, "Iltimos, telefon raqamingizni yuborish uchun tugmani bosing.");
+            if (messageText.equals("🏠 Asosiy menyu")) {
+                BlockedUser user = blockedUserRepository.findById(chatId).orElse(null);
+                if (user != null && user.getPhoneNumber() != null && !"BLOCKED".equals(user.getPhoneNumber())) {
+                    sessionService.clearSession(chatId);
+                    sendMainMenu(chatId, true);
+                } else {
+                    messageSender.sendMessage(chatId, "Iltimos, avval telefon raqamingizni yuboring.");
+                    sendPhoneNumberRequest(chatId);
+                }
+                return;
+            }
+            messageSender.sendMessage(chatId, "Iltimos, telefon raqamingizni yuborish uchun tugmani bosing yoki menyuga o‘tish uchun 'Asosiy menyu' ni tanlang.");
             sendPhoneNumberRequest(chatId);
             return;
         }
@@ -339,8 +365,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText("Xush kelibsiz! Operatsiyani tanlang:");
-        message.setReplyMarkup(new ReplyKeyboardRemove(true));
-        message.setReplyMarkup(createMainMenuKeyboard());// Remove the phone number keyboard
+        message.setReplyMarkup(createMainMenuKeyboard());
         messageSender.sendMessage(message, chatId);
     }
 
