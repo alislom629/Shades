@@ -463,7 +463,17 @@ public class TopUpService {
             if (attempts >= 2) {
                 request.setStatus(RequestStatus.PENDING_SCREENSHOT);
                 requestRepository.save(request);
-                messageSender.sendMessage(chatId, "To‘lov hali qabul qilinmadi. Iltimos, to‘lov chekining skrinshotini yuboring.");
+                SendMessage message = new SendMessage();
+                message.setChatId(chatId);
+                message.setText("To‘lov hali qabul qilinmadi. Iltimos, to‘lov chekining skrinshotini yuboring.");
+                InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                rows.add(createNavigationButtons());
+                markup.setKeyboard(rows);
+                message.setReplyMarkup(markup);
+                messageSender.sendMessage(message,chatId );
+
                 sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
             } else {
                 messageSender.sendMessage(chatId, "To‘lov hali qabul qilinmadi. Iltimos, biroz kuting va yana 'Tasdiqlash' tugmasini bosing.");
