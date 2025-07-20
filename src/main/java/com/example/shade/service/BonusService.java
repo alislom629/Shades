@@ -677,7 +677,7 @@ public class BonusService {
             messageSender.sendMessage(chatId, "Sizda bu amalni bajarish uchun ruxsat yo‘q.");
             return;
         }
-        BlockedUser blockedUser = BlockedUser.builder().chatId(userChatId).build();
+        BlockedUser blockedUser = BlockedUser.builder().chatId(userChatId).phoneNumber("BLOCKED").build();
         blockedUserRepository.save(blockedUser);
 
         messageSender.sendMessage(userChatId, "Sizning hisobingiz bloklandi.");

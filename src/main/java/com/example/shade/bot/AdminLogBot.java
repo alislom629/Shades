@@ -101,11 +101,13 @@ public class AdminLogBot extends TelegramLongPollingBot {
                     return;
                 }
                 Long userId = Long.parseLong(parts[1]);
-                if (blockedUserRepository.existsByChatId(userId)) {
+                BlockedUser user = blockedUserRepository.findById(userId)
+                        .orElse(BlockedUser.builder().chatId(userId).build());
+                if ("BLOCKED".equals(user.getPhoneNumber())) {
                     message.setText("❌ Bu foydalanuvchi allaqachon bloklangan.");
                 } else {
-                    BlockedUser blockedUser = BlockedUser.builder().chatId(userId).build();
-                    blockedUserRepository.save(blockedUser);
+                    user.setPhoneNumber("BLOCKED");
+                    blockedUserRepository.save(user);
                     message.setText("✅ Foydalanuvchi (ID: " + userId + ") bloklandi.");
                     logger.info("User {} blocked by admin chatId {}", userId, chatId);
                 }
@@ -122,12 +124,14 @@ public class AdminLogBot extends TelegramLongPollingBot {
                     return;
                 }
                 Long userId = Long.parseLong(parts[1]);
-                if (blockedUserRepository.existsByChatId(userId)) {
-                    blockedUserRepository.deleteById(userId);
+                BlockedUser user = blockedUserRepository.findById(userId).orElse(null);
+                if (user == null || !"BLOCKED".equals(user.getPhoneNumber())) {
+                    message.setText("❌ Bu foydalanuvchi bloklanmagan.");
+                } else {
+                    user.setPhoneNumber(null); // Unblock by setting phoneNumber to null
+                    blockedUserRepository.save(user);
                     message.setText("✅ Foydalanuvchi (ID: " + userId + ") blokdan chiqarildi.");
                     logger.info("User {} unblocked by admin chatId {}", userId, chatId);
-                } else {
-                    message.setText("❌ Bu foydalanuvchi bloklanmagan.");
                 }
             } catch (NumberFormatException e) {
                 message.setText("❌ Xatolik: Foydalanuvchi ID raqam bo‘lishi kerak.");
@@ -192,20 +196,30 @@ public class AdminLogBot extends TelegramLongPollingBot {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             topUpService.handleScreenshotApproval(chatId, requestId, false);
         } else if (callbackData.startsWith("ADMIN_APPROVE_TRANSFER:")) {
-            Long requestId = Long.valueOf(callbackData.split(":")[1]);
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
             bonusService.handleAdminApproveTransfer(chatId, requestId);
         } else if (callbackData.startsWith("ADMIN_DECLINE_TRANSFER:")) {
-            Long requestId = Long.valueOf(callbackData.split(":")[1]);
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
             bonusService.handleAdminDeclineTransfer(chatId, requestId);
         } else if (callbackData.startsWith("ADMIN_REMOVE_TICKETS:")) {
-            String userChatId = callbackData.split(":")[1];
-            bonusService.handleAdminRemoveTickets(chatId, Long.parseLong(userChatId));
+            Long userId = Long.parseLong(callbackData.split(":")[1]);
+            bonusService.handleAdminRemoveTickets(chatId, userId);
         } else if (callbackData.startsWith("ADMIN_REMOVE_BONUS:")) {
-            String userChatId = callbackData.split(":")[1];
-            bonusService.handleAdminRemoveBonus(chatId, Long.parseLong(userChatId));
+            Long userId = Long.parseLong(callbackData.split(":")[1]);
+            bonusService.handleAdminRemoveBonus(chatId, userId);
         } else if (callbackData.startsWith("ADMIN_BLOCK_USER:")) {
-            String userChatId = callbackData.split(":")[1];
-            bonusService.handleAdminBlockUser(chatId, Long.parseLong(userChatId));
+            Long userId = Long.parseLong(callbackData.split(":")[1]);
+            BlockedUser user = blockedUserRepository.findById(userId)
+                    .orElse(BlockedUser.builder().chatId(userId).build());
+            if ("BLOCKED".equals(user.getPhoneNumber())) {
+                message.setText("❌ Bu foydalanuvchi allaqachon bloklangan.");
+            } else {
+                user.setPhoneNumber("BLOCKED");
+                blockedUserRepository.save(user);
+                message.setText("✅ Foydalanuvchi (ID: " + userId + ") bloklandi.");
+                logger.info("User {} blocked by admin chatId {}", userId, chatId);
+            }
+            adminTelegramMessageSender.sendMessage(message, chatId);
         } else if ("/unregister".equals(callbackData)) {
             boolean deleted = adminLogBotService.deleteAdminChat(chatId);
             message.setText(deleted ? "✅ Admin ro‘yxatdan o‘chirildi." : "❌ Xatolik: Siz ro‘yxatdan o‘tmagansiz.");

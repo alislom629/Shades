@@ -1,5 +1,6 @@
 package com.example.shade.bot;
 
+import com.example.shade.model.BlockedUser;
 import com.example.shade.model.Referral;
 import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.repository.ReferralRepository;
@@ -19,7 +20,10 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
@@ -95,10 +99,40 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 logger.warn("No chatId found in update: {}", update);
                 return;
             }
-            if (blockedUserRepository.existsByChatId(chatId)) {
+
+            // Check if user is blocked
+            BlockedUser user = blockedUserRepository.findById(chatId).orElse(null);
+            if (user != null && user.getPhoneNumber() == null) {
+                // User exists but has no phone number (not blocked, just hasn't shared)
+                sessionService.setUserState(chatId, "AWAITING_PHONE_NUMBER");
+                sendPhoneNumberRequest(chatId);
+                return;
+            } else if (user != null && user.getPhoneNumber() != null && user.getPhoneNumber().equals("BLOCKED")) {
+                // User is blocked
                 logger.info("Blocked user {} attempted to interact", chatId);
-                return; // Silently ignore if user is blocked
+                return;
             }
+
+            // If user doesn't exist, create a new entry without phone number
+            if (user == null) {
+                user = BlockedUser.builder().chatId(chatId).build();
+                blockedUserRepository.save(user);
+                sessionService.setUserState(chatId, "AWAITING_PHONE_NUMBER");
+                sendPhoneNumberRequest(chatId);
+                return;
+            }
+
+            if (update.hasMessage() && update.getMessage().hasContact()) {
+                // Handle phone number submission
+                String receivedPhoneNumber = update.getMessage().getContact().getPhoneNumber();
+                user.setPhoneNumber(receivedPhoneNumber);
+                blockedUserRepository.save(user);
+                logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);
+                sessionService.setUserState(chatId, null);
+                sendMainMenu(chatId, true);
+                return;
+            }
+
             if (update.hasMessage() && update.getMessage().hasText()) {
                 handleTextMessage(update.getMessage().getText(), chatId);
             } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
@@ -129,7 +163,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     message.setChatId(chatId);
                     message.setText("Rasm yuborildi. Admin tasdiqlashini kuting.");
                     message.setReplyMarkup(createBonusMenuKeyboard());
-                    messageSender.sendMessage( message, chatId);
+                    messageSender.sendMessage(message, chatId);
                 } catch (TelegramApiException e) {
                     logger.error("Failed to process photo for chatId {}: {}", chatId, e.getMessage());
                     messageSender.sendMessage(chatId, "Xatolik: Rasmni yuborishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
@@ -150,6 +184,29 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         }
     }
 
+    private void sendPhoneNumberRequest(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Iltimos, telefon raqamingizni yuboring:");
+        message.setReplyMarkup(createPhoneNumberKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private ReplyKeyboardMarkup createPhoneNumberKeyboard() {
+        ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
+        markup.setResizeKeyboard(true);
+        markup.setOneTimeKeyboard(true);
+        List<KeyboardRow> rows = new ArrayList<>();
+        KeyboardRow row = new KeyboardRow();
+        KeyboardButton button = new KeyboardButton();
+        button.setText("📞 Telefon raqamni yuborish");
+        button.setRequestContact(true);
+        row.add(button);
+        rows.add(row);
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
     private InlineKeyboardMarkup createScreenshotMarkup(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -164,6 +221,11 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private void handleTextMessage(String messageText, Long chatId) {
         logger.info("Processing message from chatId {}: {}", chatId, messageText);
         String state = sessionService.getUserState(chatId);
+        if ("AWAITING_PHONE_NUMBER".equals(state)) {
+            messageSender.sendMessage(chatId, "Iltimos, telefon raqamingizni yuborish uchun tugmani bosing.");
+            sendPhoneNumberRequest(chatId);
+            return;
+        }
         if (messageText.startsWith("/start")) {
             if (messageText.startsWith("/start ref_")) {
                 String referrerIdStr = messageText.substring("/start ref_".length());
@@ -287,6 +349,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         markup.setKeyboard(rows);
         return markup;
     }
+
     private InlineKeyboardMarkup createBonusMenuKeyboard() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -294,6 +357,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         markup.setKeyboard(rows);
         return markup;
     }
+
     private List<InlineKeyboardButton> createNavigationButtons() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
         buttons.add(createButton("🔙 Orqaga", "BACK"));

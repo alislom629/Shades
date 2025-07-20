@@ -14,4 +14,5 @@ import lombok.NoArgsConstructor;
 public class BlockedUser {
     @Id
     private Long chatId;
+    private String phoneNumber;
 }
