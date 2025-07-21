@@ -259,11 +259,29 @@ public class WithdrawService {
             if (successObj == null && responseBody != null) {
                 successObj = responseBody.get("Success");
             }
-
-            String errorMsg = responseBody != null && responseBody.get("message") != null
+            HizmatRequest request = requestRepository.findById(requestId)
+                    .orElse(null);
+            String errorMsg = responseBody != null && responseBody.get("Message") != null
                     ? responseBody.get("Message").toString()
                     : "Platformdan noto‘g‘ri javob qaytdi.";
 
+            String cancelLogMessage = String.format(
+                    "❌ Arizangiz bekor qilindi!\n\n" +
+                            "#%d\n" +
+                            "💳 Karta: %s\n" +
+                            "💸 Valyuta: UZS 🇺🇿\n" +
+                            "🆔 %s ID: %s\n" +
+                            "#️⃣ 4 ta kod: %s\n\n" +
+                            "❌ Xabar: %s \n\n" +
+                            "📆 Vaqt: %s",
+                    request.getId(),               // e.g., 74224
+                    request.getCardNumber(),                    // e.g., 5614684905893317
+                    platform,                      // e.g., "1XBET UZS"
+                    userId,                        // e.g., 1322429831
+                    code,
+                    errorMsg,// e.g., "Euej"
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
             if (response.getStatusCode().is2xxSuccessful() && Boolean.TRUE.equals(successObj)) {
                 Object summaObj = responseBody.get("summa");
                 BigDecimal summa = null;
@@ -279,7 +297,7 @@ public class WithdrawService {
                 return summa;
             } else {
                 logger.warn("❌ Payout failed for userId {} on platform {}, response: {}", userId, platformName, responseBody);
-                messageSender.sendMessage(chatId, "❌ Payout xatosi: " + errorMsg );
+                messageSender.sendMessage(chatId, cancelLogMessage );
                 sendMainMenu(chatId);
                 return null;
             }
