@@ -487,36 +487,47 @@ public class WithdrawService {
 
         if (paidAmount != null) {
             // 🔥 Apply 2% service fee
-            BigDecimal netAmount = paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(0, RoundingMode.DOWN);
-            if (request.getCurrency().equals(Currency.RUB)){
+            BigDecimal netAmount = paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(2, RoundingMode.DOWN);
+            if (request.getCurrency().equals(Currency.RUB)) {
                 ExchangeRate latest = exchangeRateRepository.findLatest()
                         .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-                netAmount=netAmount.multiply(latest.getRubToUzs());
+                netAmount = netAmount.multiply(latest.getRubToUzs()).setScale(2, RoundingMode.DOWN);
             }
+
+            BigDecimal comission = paidAmount.multiply(BigDecimal.valueOf(0.02)).setScale(2, RoundingMode.DOWN);
+            if (request.getCurrency().equals(Currency.RUB)) {
+                ExchangeRate latest = exchangeRateRepository.findLatest()
+                        .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+                comission = comission.multiply(latest.getRubToUzs()).setScale(2, RoundingMode.DOWN);
+            }
+
             String logMessage = String.format(
                     "#PUL 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
-                            "👤 User ID [%s] %s\n" +  // Clickable number with + sign
-                            "🌐 %s: " + "%s\n"+
+                            "👤 User ID [%s] %s\n" +
+                            "🌐 %s: %s\n" +
                             "💳 Karta raqami: %s\n" +
                             "🔑 Kod: %s\n" +
-                            "💸 To‘langan summa (brutto): %s\n" +
-                            "💵 Foydalanuvchiga tushgan (netto, -2%%): %s\n"+
+                            "💸 Yechib Olingan summa: %s\n" +
+                            "💵 Foydalanuvchiga tushgan (netto, -2%%): %s\n" +
+                            "💵 Komissiya (2%%): %s\n" +
                             "📅 [%s]",
                     request.getId(),
-                    chatId,number, platform, userId,  cardNumber, code,
+                    chatId, number, platform, userId, cardNumber, code,
                     paidAmount.toPlainString(),
-                    netAmount.toPlainString(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    netAmount.toPlainString(), comission.toPlainString(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
             messageSender.sendMessage(chatId,
                     "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilidni !\n" +
                             "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
-                            "📉 Xizmat haqi (-2%%): " + paidAmount.subtract(netAmount).toPlainString() + "\n" +
+                            "📉 Xizmat haqi (-2%%): " + paidAmount.subtract(netAmount).setScale(2, RoundingMode.DOWN).toPlainString() + "\n" +
                             "💵 Sizga tushgan: " + netAmount.toPlainString() + "\n" +
                             "📋 Tranzaksiya ID: " + request.getTransactionId() + "\n" +
                             "🕓 Admin tasdiqini kuting.");
 
             adminLogBotService.sendWithdrawRequestToAdmins(chatId, logMessage, request.getId());
         }
+
 
 
     }
