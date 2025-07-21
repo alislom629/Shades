@@ -62,9 +62,7 @@ public class AdminLogBotService {
         String logMessage = String.format(
                 "📋 Hizmat requestId: %d To‘lov skrinshoti keldi 📷\n" +
                         "👤 User ID [%s] %s\n" +
-                        "🌐 Platforma: %s\n" +
-                        "🆔 Foydalanuvchi ID: %s\n" +
-                        "📛 Ism: %s\n" +
+                        "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta raqami: %s\n" +

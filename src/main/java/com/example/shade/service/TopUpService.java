@@ -434,7 +434,6 @@ public class TopUpService {
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
-                                "📛 Ism: %s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +
@@ -446,7 +445,6 @@ public class TopUpService {
                         number,
                         request.getPlatform(),
                         request.getPlatformUserId(),
-                        request.getFullName(),
                         request.getUniqueAmount(),
                         rubAmount,
                         request.getCardNumber(),
@@ -508,9 +506,7 @@ public class TopUpService {
         String errorLogMessage = String.format(
                 " 📋 So‘rov ID: %d Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +  // Clickable number with + sign
-                        "🌐 Platforma: %s\n" +
-                        "🆔 Foydalanuvchi ID: %s\n" +
-                        "📛 Ism: %s\n" +
+                        "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta raqami: %s\n" +
@@ -520,7 +516,6 @@ public class TopUpService {
                 chatId, number,  // ✅ chatId as label, phone number as link
                 request.getPlatform(),
                 request.getPlatformUserId(),
-                request.getFullName(),
                 request.getUniqueAmount(),
                 rubAmount,
                 request.getCardNumber(),
@@ -590,9 +585,7 @@ public class TopUpService {
                 String logMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 Platforma: %s\n" +
-                                "🆔 Foydalanuvchi ID: %s\n" +
-                                "📛 Ism: %s\n" +
+                                "🌐 %s: " + "%s\n"+
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +
@@ -603,7 +596,6 @@ public class TopUpService {
                         chatId, number,  // 🟢 Show chatId, link to phone number
                         request.getPlatform(),
                         request.getPlatformUserId(),
-                        request.getFullName(),
                         request.getUniqueAmount(),
                         rubAmount,
                         request.getCardNumber(),
@@ -627,9 +619,7 @@ public class TopUpService {
             String logMessage = String.format(
                     "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
-                            "🌐 Platforma: %s\n" +
-                            "🆔 Foydalanuvchi ID: %s\n" +
-                            "📛 Ism: %s\n" +
+                            "🌐 %s: " + "%s\n"+
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta raqami: %s\n" +
@@ -639,7 +629,6 @@ public class TopUpService {
                     chatId, number,  // chatId as label, phone as target
                     request.getPlatform(),
                     request.getPlatformUserId(),
-                    request.getFullName(),
                     request.getUniqueAmount(),
                     rubAmount,
                     request.getCardNumber(),
