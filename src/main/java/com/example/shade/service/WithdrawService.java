@@ -173,7 +173,7 @@ public class WithdrawService {
                     "#PUL \n\n 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n"+
-                            "💳 Karta raqami: %s\n" +
+                            "💳 Karta raqami: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             " 📅 [%s]",
                     request.getId() ,number,
@@ -192,7 +192,7 @@ public class WithdrawService {
                     "#PUL \n\n 📋 So'rov ID: %s  Pul yechib olish rad etildi ❌\n" +
                             "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                             "🌐 %s: " + "%s\n"+
-                            "💳 Karta raqami: %s\n" +
+                            "💳 Karta raqami: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "📅 [%s]",
                     request.getId(),chatId,number,
@@ -269,7 +269,7 @@ public class WithdrawService {
             String cancelLogMessage = String.format(
                     "❌ Arizangiz bekor qilindi!\n\n" +
                             "#%d\n" +
-                            "💳 Karta: %s\n" +
+                            "💳 Karta: `%s`\n" +
                             "💸 Valyuta: UZS 🇺🇿\n" +
                             "🆔 %s ID: %s\n" +
                             "#️⃣ 4 ta kod: %s\n\n" +

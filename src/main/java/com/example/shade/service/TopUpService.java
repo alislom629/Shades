@@ -435,8 +435,8 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n"+
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: %s\n" +
-                                "🔐 Admin kartasi: %s\n" +
+                                "💳 Karta raqami: `%s`\n" +
+                                "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n" +
                                 "📅 [%s]",
                         request.getId(),
@@ -508,8 +508,8 @@ public class TopUpService {
                         "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
-                        "💳 Karta raqami: %s\n" +
-                        "🔐 Admin kartasi: %s\n" +
+                        "💳 Karta raqami: `%s`\n" +
+                        "🔐 Admin kartasi: `%s`\n" +
                         "📅 [%s] ",
                 request.getId(),
                 chatId, number,  // ✅ chatId as label, phone number as link
@@ -587,8 +587,8 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n"+
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: %s\n" +
-                                "🔐 Admin kartasi: %s\n" +
+                                "💳 Karta raqami: `%s`\n" +
+                                "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n" +
                                 "📅 [%s] ",
                         request.getId(),
@@ -621,8 +621,8 @@ public class TopUpService {
                             "🌐 %s: " + "%s\n"+
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
-                            "💳 Karta raqami: %s\n" +
-                            "🔐 Admin kartasi: %s\n" +
+                            "💳 Karta raqami: `%s`\n" +
+                            "🔐 Admin kartasi: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
                     chatId, number,  // chatId as label, phone as target

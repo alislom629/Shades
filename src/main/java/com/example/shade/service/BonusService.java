@@ -611,7 +611,7 @@ public class BonusService {
                         "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
-                        "💳 Karta raqami: %s\n" +
+                        "💳 Karta raqami: `%s`\n" +
                         "📅 [%s] ",
                 request.getId(),
                 chatId,number, request.getPlatform(), request.getPlatformUserId(),

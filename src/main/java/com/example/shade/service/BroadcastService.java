@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BroadcastService {
     private static final Logger logger = LoggerFactory.getLogger(BroadcastService.class);
     private final BlockedUserRepository blockedUserRepository;
-    private final ShadePaymentBot shadePaymentBot;
     private final TaskScheduler taskScheduler;
     private final MessageSender messageSender;
 
