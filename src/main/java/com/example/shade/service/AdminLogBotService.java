@@ -69,7 +69,7 @@ public class AdminLogBotService {
                         "🔐 Admin kartasi: %s\n" +
                         "📅 [%s]",
                 request.getId(),
-                userChatId,number,  request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                userChatId, number,  request.getPlatform(), request.getPlatformUserId(),
                 request.getUniqueAmount(), rubAmount, request.getCardNumber(),
                 request.getAdminCardId() != null ? adminCardRepository.findById(request.getAdminCardId()).map(AdminCard::getCardNumber).orElse("N/A") : "N/A",
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
