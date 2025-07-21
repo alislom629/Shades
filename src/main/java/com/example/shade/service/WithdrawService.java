@@ -511,9 +511,8 @@ public class WithdrawService {
             messageSender.sendMessage(chatId,
                     "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilidni !\n" +
                             "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
-                            "📉 Xizmat haqi (-2%%): " + paidAmount.subtract(netAmount).setScale(2, RoundingMode.DOWN).toPlainString() + "\n" +
                             "💵 Sizga tushgan: " + netAmount.toPlainString() + "\n" +
-                            "📋 Tranzaksiya ID: " + request.getTransactionId() + "\n" +
+                            "📋 So‘rov ID: " + request.getId() + "\n" +
                             "🕓 Admin tasdiqini kuting.");
 
             adminLogBotService.sendWithdrawRequestToAdmins(chatId, logMessage, request.getId());
