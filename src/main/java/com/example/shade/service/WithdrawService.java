@@ -105,6 +105,7 @@ public class WithdrawService {
                     sessionService.setUserState(chatId, "WITHDRAW_CODE_INPUT");
                     sessionService.addNavigationState(chatId, "WITHDRAW_CARD_INPUT");
                     sendCodeInput(chatId);
+                    handleCardInput(chatId,  callback.split(":")[1]);
                 } else {
                     logger.warn("Unknown callback for chatId {}: {}", chatId, callback);
                     messageSender.sendMessage(chatId, "Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
@@ -206,7 +207,7 @@ public class WithdrawService {
         logger.info("Admin chatId {} {} withdraw requestId {}", adminChatId, approve ? "approved" : "rejected", requestId);
     }
 
-    private BigDecimal processPayout(Long chatId, String platformName, String userId, String code, Long requestId) {
+    private BigDecimal processPayout(Long chatId, String platformName, String userId, String code, Long requestId, String cardNumber) {
         Platform platform = platformRepository.findByName(platformName.replace("_", ""))
                 .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
 
@@ -275,7 +276,7 @@ public class WithdrawService {
                             "❌ Xabar: %s \n\n" +
                             "📆 Vaqt: %s",
                     request.getId(),               // e.g., 74224
-                    request.getCardNumber(),                    // e.g., 5614684905893317
+                    cardNumber,                  // e.g., 5614684905893317
                     platform.getName(),                      // e.g., "1XBET UZS"
                     userId,                        // e.g., 1322429831
                     code,
@@ -283,7 +284,7 @@ public class WithdrawService {
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
             if (response.getStatusCode().is2xxSuccessful() && Boolean.TRUE.equals(successObj)) {
-                Object summaObj = responseBody.get("summa");
+                Object summaObj = responseBody.get("Summa");
                 BigDecimal summa = null;
                 if (summaObj != null) {
                     try {
@@ -480,7 +481,7 @@ public class WithdrawService {
         requestRepository.save(request);
 
         // Process payout immediately
-        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId());
+        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber);
 
         String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
