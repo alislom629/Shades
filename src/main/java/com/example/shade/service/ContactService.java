@@ -32,10 +32,18 @@ public class ContactService {
 
         // 2 - Chat tugmasi
         rows.add(List.of(createButton("💬 Chat", "https://t.me/Abadiy_Kassa"))); // replace with actual group/chat link
-
+        rows.add(createNavigationButtons());
         markup.setKeyboard(rows);
         return markup;
     }
+
+    private List<InlineKeyboardButton> createNavigationButtons() {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        buttons.add(createButton("🔙 Orqaga", "BACK"));
+        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        return buttons;
+    }
+
 
     private InlineKeyboardButton createButton(String text, String callbackOrUrl) {
         InlineKeyboardButton button = new InlineKeyboardButton();
