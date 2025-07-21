@@ -138,6 +138,9 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 if (user == null) {
                     user = BlockedUser.builder().chatId(chatId).build();
                 }
+                if (!receivedPhoneNumber.startsWith("+")){
+                    receivedPhoneNumber = "+"+receivedPhoneNumber;
+                }
                 user.setPhoneNumber(receivedPhoneNumber);
                 blockedUserRepository.save(user);
                 logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);

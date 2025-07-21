@@ -45,6 +45,7 @@ public class TopUpService {
     private static final long MAX_AMOUNT = 10_000_000;
     private static final String PAYMENT_MESSAGE_KEY = "payment_message_id";
     private static final String PAYMENT_ATTEMPTS_KEY = "payment_attempts";
+    private final BlockedUserRepository blockedUserRepository;
 
     public void startTopUp(Long chatId) {
         logger.info("Starting top-up for chatId: {}", chatId);
@@ -407,7 +408,10 @@ public class TopUpService {
                     BigDecimal.valueOf(request.getUniqueAmount())
                             .multiply(latest.getUzsToRub())
                             .longValue() / 1000 : request.getUniqueAmount();
-
+            long rubAmount =
+                    BigDecimal.valueOf(request.getUniqueAmount())
+                            .multiply(latest.getUzsToRub())
+                            .longValue() / 1000 ;
             if (transferSuccessful) {
                 UserBalance balance = userBalanceRepository.findById(chatId)
                         .orElseGet(() -> {
@@ -424,10 +428,10 @@ public class TopUpService {
                 }
 
                 bonusService.creditReferral(chatId, request.getAmount());
-
+                String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
                 String logMessage = String.format(
-                        "📅 [%s] To‘lov yakunlandi ✅\n" +
-                                "👤 Chat ID: %s\n" +
+                        "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
+                                "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
@@ -435,15 +439,22 @@ public class TopUpService {
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +
                                 "🔐 Admin kartasi: %s\n" +
-                                "📌 Tranzaksiya ID: %s\n" +
-                                "🧾 Hisob ID: %d\n" +
                                 "🎟️ Chiptalar: %d\n" +
-                                "📋 So‘rov ID: %d",
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(), amount,
-                        request.getCardNumber(), adminCard.getCardNumber(),
-                        request.getTransactionId(), request.getBillId(), tickets, request.getId());
+                                "📅 [%s]",
+                        request.getId(),
+                        chatId,
+                        number,
+                        request.getPlatform(),
+                        request.getPlatformUserId(),
+                        request.getFullName(),
+                        request.getUniqueAmount(),
+                        rubAmount,
+                        request.getCardNumber(),
+                        adminCard.getCardNumber(),
+                        tickets,
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+
 
                 adminLogBotService.sendLog(logMessage);
 
@@ -472,7 +483,7 @@ public class TopUpService {
                 rows.add(createNavigationButtons());
                 markup.setKeyboard(rows);
                 message.setReplyMarkup(markup);
-                messageSender.sendMessage(message,chatId );
+                messageSender.sendMessage(message, chatId);
 
                 sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
             } else {
@@ -489,10 +500,14 @@ public class TopUpService {
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000 : request.getUniqueAmount();
-
+        long rubAmount =
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 ;
+        String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
         String errorLogMessage = String.format(
-                "📅 [%s] Transfer xatosi ❌\n" +
-                        "👤 Chat ID: %s\n" +
+                " 📋 So‘rov ID: %d Transfer xatosi ❌\n" +
+                        "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                         "🌐 Platforma: %s\n" +
                         "🆔 Foydalanuvchi ID: %s\n" +
                         "📛 Ism: %s\n" +
@@ -500,14 +515,19 @@ public class TopUpService {
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta raqami: %s\n" +
                         "🔐 Admin kartasi: %s\n" +
-                        "📌 Tranzaksiya ID: %s\n" +
-                        "🧾 Admin ID: %d\n" +
-                        "📋 So‘rov ID: %d",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                request.getUniqueAmount(), amount, request.getCardNumber(),
-                adminCard.getCardNumber(), request.getTransactionId(), chatId,
-                request.getId());
+                        "📅 [%s] ",
+                request.getId(),
+                chatId, number,  // ✅ chatId as label, phone number as link
+                request.getPlatform(),
+                request.getPlatformUserId(),
+                request.getFullName(),
+                request.getUniqueAmount(),
+                rubAmount,
+                request.getCardNumber(),
+                adminCard.getCardNumber(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        );
+
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -539,6 +559,10 @@ public class TopUpService {
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000 : request.getUniqueAmount();
+        long rubAmount =
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 ;
 
         if (approve) {
             request.setStatus(RequestStatus.APPROVED);
@@ -562,9 +586,10 @@ public class TopUpService {
 
                 bonusService.creditReferral(requestId, request.getAmount());
 
+                String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
                 String logMessage = String.format(
-                        "📅 [%s] To‘lov skrinshoti tasdiqlandi ✅\n" +
-                                "👤 Chat ID: %s\n" +
+                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                                "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 Platforma: %s\n" +
                                 "🆔 Foydalanuvchi ID: %s\n" +
                                 "📛 Ism: %s\n" +
@@ -572,15 +597,21 @@ public class TopUpService {
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +
                                 "🔐 Admin kartasi: %s\n" +
-                                "📌 Tranzaksiya ID: %s\n" +
-                                "🧾 Admin ID: %d\n" +
                                 "🎟️ Chiptalar: %d\n" +
-                                "📋 So‘rov ID: %d",
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        requestId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                        request.getUniqueAmount(), amount, request.getCardNumber(),
-                        adminCard.getCardNumber(), request.getTransactionId(), chatId,
-                        tickets, request.getId());
+                                "📅 [%s] ",
+                        request.getId(),
+                        chatId, number,  // 🟢 Show chatId, link to phone number
+                        request.getPlatform(),
+                        request.getPlatformUserId(),
+                        request.getFullName(),
+                        request.getUniqueAmount(),
+                        rubAmount,
+                        request.getCardNumber(),
+                        adminCard.getCardNumber(),
+                        tickets,
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+
 
                 adminLogBotService.sendLog(logMessage);
                 messageSender.sendMessage(requestId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
@@ -592,9 +623,10 @@ public class TopUpService {
             request.setStatus(RequestStatus.CANCELED);
             requestRepository.save(request);
 
+            String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
             String logMessage = String.format(
-                    "📅 [%s] To‘lov skrinshoti rad etildi ❌\n" +
-                            "👤 Chat ID: %s\n" +
+                    "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
+                            "👤ID [%s] %s\n" +
                             "🌐 Platforma: %s\n" +
                             "🆔 Foydalanuvchi ID: %s\n" +
                             "📛 Ism: %s\n" +
@@ -602,14 +634,19 @@ public class TopUpService {
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta raqami: %s\n" +
                             "🔐 Admin kartasi: %s\n" +
-                            "📌 Tranzaksiya ID: %s\n" +
-                            "🧾 Admin ID: %d\n" +
-                            "📋 So‘rov ID: %d",
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    requestId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                    request.getUniqueAmount(), amount, request.getCardNumber(),
-                    adminCard.getCardNumber(), request.getTransactionId(), chatId,
-                    request.getId());
+                            "📅 [%s] ",
+                    request.getId(),
+                    chatId, number,  // chatId as label, phone as target
+                    request.getPlatform(),
+                    request.getPlatformUserId(),
+                    request.getFullName(),
+                    request.getUniqueAmount(),
+                    rubAmount,
+                    request.getCardNumber(),
+                    adminCard.getCardNumber(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+
 
             adminLogBotService.sendLog(logMessage);
             messageSender.sendMessage(requestId, "❌ To‘lov so‘rovingiz rad etildi. Iltimos, qayta urinib ko‘ring.");
@@ -880,7 +917,7 @@ public class TopUpService {
                 row.add(createButton("🇷🇺 " + rubPlatform.getName(), "TOPUP_PLATFORM:" + rubPlatform.getName()));
             } else {
                 i++;
-                if (i < uzsPlatforms.size() && i<maxRows) {
+                if (i < uzsPlatforms.size() && i < maxRows) {
                     Platform uzsPlatform = uzsPlatforms.get(i);
                     row.add(createButton("🇺🇿 " + uzsPlatform.getName(), "TOPUP_PLATFORM:" + uzsPlatform.getName()));
                 }
@@ -987,6 +1024,7 @@ public class TopUpService {
         markup.setKeyboard(rows);
         return markup;
     }
+
     private InlineKeyboardMarkup createMainMenuKeyboard() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();

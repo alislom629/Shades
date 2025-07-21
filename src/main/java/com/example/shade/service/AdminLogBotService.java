@@ -2,10 +2,7 @@ package com.example.shade.service;
 
 import com.example.shade.bot.AdminTelegramMessageSender;
 import com.example.shade.model.*;
-import com.example.shade.repository.AdminCardRepository;
-import com.example.shade.repository.AdminChatRepository;
-import com.example.shade.repository.ExchangeRateRepository;
-import com.example.shade.repository.HizmatRequestRepository;
+import com.example.shade.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +27,10 @@ public class AdminLogBotService {
     private final HizmatRequestRepository requestRepository;
     private final ExchangeRateRepository exchangeRateRepository;
     private final AdminCardRepository adminCardRepository;
+    private final BlockedUserRepository blockedUserRepository;
 
     public void sendScreenshotRequest(SendPhoto sendPhoto, Long userChatId) {
-        if (sendPhoto == null || sendPhoto.getPhoto() == null ) {
+        if (sendPhoto == null || sendPhoto.getPhoto() == null) {
             logger.error("Invalid SendPhoto object or file for userChatId {}", userChatId);
             return;
         }
@@ -54,15 +52,16 @@ public class AdminLogBotService {
         // Calculate RUB amount if needed
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-        long amountRub = request.getCurrency().equals(Currency.RUB) ?
+        long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
-                        .longValue() / 1000 : request.getUniqueAmount();
-
+                        .longValue() / 1000;
         // Format log message as photo caption
+        String number = blockedUserRepository.findByChatId(userChatId).get().getPhoneNumber();
+
         String logMessage = String.format(
-                "📅 [%s] To‘lov skrinshoti keldi 📷\n" +
-                        "👤 Chat ID: %s\n" +
+                "📋 Hizmat requestId: %d To‘lov skrinshoti keldi 📷\n" +
+                        "👤 User ID [%s] %s\n" +
                         "🌐 Platforma: %s\n" +
                         "🆔 Foydalanuvchi ID: %s\n" +
                         "📛 Ism: %s\n" +
@@ -70,15 +69,12 @@ public class AdminLogBotService {
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta raqami: %s\n" +
                         "🔐 Admin kartasi: %s\n" +
-                        "📌 Tranzaksiya ID: %s\n" +
-                        "🧾 Hisob ID: %d\n" +
-                        "📋 Hizmat requestId: %d",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                userChatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                request.getUniqueAmount(), amountRub, request.getCardNumber(),
+                        "📅 [%s]",
+                request.getId(),
+                userChatId,number,  request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
+                request.getUniqueAmount(), rubAmount, request.getCardNumber(),
                 request.getAdminCardId() != null ? adminCardRepository.findById(request.getAdminCardId()).map(AdminCard::getCardNumber).orElse("N/A") : "N/A",
-                request.getTransactionId(), request.getBillId() != null ? request.getBillId() : 0,
-                request.getId());
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
         // Set log message as photo caption
         sendPhoto.setCaption(logMessage);
@@ -223,6 +219,7 @@ public class AdminLogBotService {
             logger.info("Sent message to admin chatId: {}", adminChat.getChatId());
         }
     }
+
     public void sendToAdmins(String message, InlineKeyboardMarkup keyboard) {
         var adminChats = adminChatRepository.findByReceiveNotificationsTrue();
         if (adminChats.isEmpty()) {
