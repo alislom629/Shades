@@ -170,7 +170,7 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "#PUL 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
+                    "#PUL \n\n 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: %s\n" +
@@ -189,7 +189,7 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "#PUL 📋 Tranzaksiya ID: %s  Pul yechib olish rad etildi ❌\n" +
+                    "#PUL \n\n 📋 So'rov ID: %s  Pul yechib olish rad etildi ❌\n" +
                             "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: %s\n" +
@@ -496,21 +496,23 @@ public class WithdrawService {
             }
 
             String logMessage = String.format(
-                    "#PUL 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
+                    "#PUL \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: %s\n" +
                             "💳 Karta raqami: %s\n" +
                             "🔑 Kod: %s\n" +
+                            "💵 Yechilgan: %s\n" +
                             "💵 Foydalanuvchiga tushgan: %s\n" +
                             "📅 [%s]",
                     request.getId(),
-                    chatId, number, platform, userId, cardNumber, code,
+                    chatId, number, platform, userId, cardNumber, code,paidAmount.toPlainString(),
                     netAmount.toPlainString(),
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
             messageSender.sendMessage(chatId,
                     "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilidni !\n" +
                             "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
+                            "💵 Sizga tushgan: " + netAmount.toPlainString() + "\n" +
                             "📋 So‘rov ID: " + request.getId() + "\n" +
                             "🕓 Admin tasdiqini kuting.");
 
