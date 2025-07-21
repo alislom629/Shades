@@ -481,24 +481,18 @@ public class WithdrawService {
         requestRepository.save(request);
 
         // Process payout immediately
-        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber);
+        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber).multiply(BigDecimal.valueOf(-1));
 
         String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
         if (paidAmount != null) {
-            // 🔥 Apply 2% service fee
-            BigDecimal netAmount = paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(2, RoundingMode.DOWN);
-            if (request.getCurrency().equals(Currency.RUB)) {
+            BigDecimal netAmount=paidAmount.setScale(2, RoundingMode.DOWN);
+            if (!request.getCurrency().equals(Currency.RUB)) {
+                paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(2, RoundingMode.DOWN);
+            }else {
                 ExchangeRate latest = exchangeRateRepository.findLatest()
                         .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
                 netAmount = netAmount.multiply(latest.getRubToUzs()).setScale(2, RoundingMode.DOWN);
-            }
-
-            BigDecimal comission = paidAmount.multiply(BigDecimal.valueOf(0.02)).setScale(2, RoundingMode.DOWN);
-            if (request.getCurrency().equals(Currency.RUB)) {
-                ExchangeRate latest = exchangeRateRepository.findLatest()
-                        .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-                comission = comission.multiply(latest.getRubToUzs()).setScale(2, RoundingMode.DOWN);
             }
 
             String logMessage = String.format(
@@ -507,14 +501,11 @@ public class WithdrawService {
                             "🌐 %s: %s\n" +
                             "💳 Karta raqami: %s\n" +
                             "🔑 Kod: %s\n" +
-                            "💸 Yechib Olingan summa: %s\n" +
-                            "💵 Foydalanuvchiga tushgan (netto, -2%%): %s\n" +
-                            "💵 Komissiya (2%%): %s\n" +
+                            "💵 Foydalanuvchiga tushgan: %s\n" +
                             "📅 [%s]",
                     request.getId(),
                     chatId, number, platform, userId, cardNumber, code,
-                    paidAmount.toPlainString(),
-                    netAmount.toPlainString(), comission.toPlainString(),
+                    netAmount.toPlainString(),
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
             messageSender.sendMessage(chatId,
