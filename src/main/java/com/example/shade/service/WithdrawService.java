@@ -481,14 +481,14 @@ public class WithdrawService {
         requestRepository.save(request);
 
         // Process payout immediately
-        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber).multiply(BigDecimal.valueOf(-1));
+        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber).multiply(BigDecimal.valueOf(-1)).setScale(2, RoundingMode.DOWN);;
 
         String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
         if (paidAmount != null) {
-            BigDecimal netAmount=paidAmount.setScale(2, RoundingMode.DOWN);
+            BigDecimal netAmount=paidAmount;
             if (!request.getCurrency().equals(Currency.RUB)) {
-                paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(2, RoundingMode.DOWN);
+                netAmount=paidAmount.multiply(BigDecimal.valueOf(0.98)).setScale(2, RoundingMode.DOWN);
             }else {
                 ExchangeRate latest = exchangeRateRepository.findLatest()
                         .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
