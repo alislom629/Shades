@@ -276,7 +276,7 @@ public class WithdrawService {
                             "📆 Vaqt: %s",
                     request.getId(),               // e.g., 74224
                     request.getCardNumber(),                    // e.g., 5614684905893317
-                    platform,                      // e.g., "1XBET UZS"
+                    platform.getName(),                      // e.g., "1XBET UZS"
                     userId,                        // e.g., 1322429831
                     code,
                     errorMsg,// e.g., "Euej"
