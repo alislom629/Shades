@@ -431,9 +431,8 @@ public class TopUpService {
                 String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
                 String logMessage = String.format(
                         "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
-                                "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 Platforma: %s\n" +
-                                "🆔 Foydalanuvchi ID: %s\n" +
+                                "👤User ID [%s] %s\n" +  // Clickable number with + sign
+                                "🌐 %s: " + "%s\n"+
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: %s\n" +

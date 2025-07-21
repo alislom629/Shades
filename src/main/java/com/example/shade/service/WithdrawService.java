@@ -3,6 +3,7 @@ package com.example.shade.service;
 import com.example.shade.bot.MessageSender;
 import com.example.shade.model.*;
 import com.example.shade.model.Currency;
+import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.repository.ExchangeRateRepository;
 import com.example.shade.repository.HizmatRequestRepository;
 import com.example.shade.repository.PlatformRepository;
@@ -41,6 +42,7 @@ public class WithdrawService {
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;
     private final RestTemplate restTemplate = new RestTemplate();
+    private final BlockedUserRepository blockedUserRepository;
 
     public void startWithdrawal(Long chatId) {
         logger.info("Starting withdrawal for chatId: {}", chatId);
@@ -160,23 +162,22 @@ public class WithdrawService {
         String cardNumber = request.getCardNumber();
         String code = request.getTransactionId();
         Long chatId = request.getChatId();
+        String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
         if (approve) {
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "📅 [%s] Pul yechib olish tasdiqlandi ✅\n" +
-                            "👤 Chat ID: %d\n" +
-                            "🌐 Platforma: %s\n" +
-                            "🆔 Foydalanuvchi ID: %s\n" +
-                            "📛 Ism: %s\n" +
+                    "#PUL 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
+                            "👤 User ID [%s] %s\n" +
+                            "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: %s\n" +
                             "🔑 Kod: %s\n" +
-                            "📋 Tranzaksiya ID: %s",
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    chatId, platform, userId, request.getFullName(),
-                    cardNumber, code, request.getId());
+                            " 📅 [%s]",
+                    request.getId() ,number,
+                    chatId, platform, userId,
+                    cardNumber, code, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             adminLogBotService.sendToAdmins("✅ So‘rov tasdiqlandi: requestId " + requestId);
 
@@ -187,16 +188,15 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "📅 [%s] Pul yechib olish rad etildi ❌\n" +
-                            "👤 Chat ID: %d\n" +
-                            "🌐 Platforma: %s\n" +
-                            "🆔 Foydalanuvchi ID: %s\n" +
-                            "📛 Ism: %s\n" +
+                    "#PUL 📋 Tranzaksiya ID: %s  Pul yechib olish rad etildi ❌\n" +
+                            "👤 User ID [%s] %s\n" +  // Clickable number with + sign
+                            "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: %s\n" +
-                            "🔑 Kod: %s",
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    chatId, platform, userId, request.getFullName(),
-                    cardNumber, code);
+                            "🔑 Kod: %s\n" +
+                            "📅 [%s]",
+                    request.getId(),chatId,number,
+                     platform, userId,
+                    cardNumber, code,  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             adminLogBotService.sendToAdmins("❌ So‘rov rad etildi: requestId " + requestId);
 
@@ -464,6 +464,7 @@ public class WithdrawService {
         // Process payout immediately
         BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId());
 
+        String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
         if (paidAmount != null) {
             // 🔥 Apply 2% service fee
@@ -474,20 +475,18 @@ public class WithdrawService {
                 netAmount=netAmount.multiply(latest.getRubToUzs());
             }
             String logMessage = String.format(
-                    "📅 [%s] Pul yechib olish so‘rovi qabul qilindi 💸\n" +
-                            "👤 Chat ID: %d\n" +
-                            "🌐 Platforma: %s\n" +
-                            "🆔 Foydalanuvchi ID: %s\n" +
-                            "📛 Ism: %s\n" +
+                    "#PUL 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
+                            "👤 User ID [%s] %s\n" +  // Clickable number with + sign
+                            "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: %s\n" +
                             "🔑 Kod: %s\n" +
-                            "📋 Tranzaksiya ID: %s\n" +
                             "💸 To‘langan summa (brutto): %s\n" +
-                            "💵 Foydalanuvchiga tushgan (netto, -2%%): %s",
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    chatId, platform, userId, request.getFullName(), cardNumber, code, request.getId(),
+                            "💵 Foydalanuvchiga tushgan (netto, -2%%): %s\n"+
+                            "📅 [%s]",
+                    request.getId(),
+                    chatId,number, platform, userId,  cardNumber, code,
                     paidAmount.toPlainString(),
-                    netAmount.toPlainString());
+                    netAmount.toPlainString(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
             messageSender.sendMessage(chatId,
                     "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilidni !\n" +

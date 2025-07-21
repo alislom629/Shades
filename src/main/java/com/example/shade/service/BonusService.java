@@ -600,24 +600,24 @@ public class BonusService {
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000 : request.getUniqueAmount();
-
+        String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
+        long rubAmount =
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000 ;
         String errorLogMessage = String.format(
-                "📅 [%s] Transfer xatosi ❌\n" +
-                        "👤 Chat ID: %s\n" +
-                        "🌐 Platforma: %s\n" +
-                        "🆔 Foydalanuvchi ID: %s\n" +
-                        "📛 Ism: %s\n" +
+                "📋 So‘rov ID: %d Transfer xatosi ❌\n" +
+                        "👤 User ID [%s] %s\n" +
+                        "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta raqami: %s\n" +
-                        "📌 Tranzaksiya ID: %s\n" +
-                        "🧾 Hisob ID: %d\n" +
-                        "📋 So‘rov ID: %d",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                chatId, request.getPlatform(), request.getPlatformUserId(), request.getFullName(),
-                request.getUniqueAmount(), amount, request.getCardNumber(),
-                 request.getTransactionId(), request.getBillId(),
-                request.getId());
+                        "📅 [%s] ",
+                request.getId(),
+                chatId,number, request.getPlatform(), request.getPlatformUserId(),
+                request.getUniqueAmount(), rubAmount, request.getCardNumber(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+               );
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -711,15 +711,16 @@ public class BonusService {
                     totalWinnings.intValue(), balance.getBalance().intValue()));
 
             messageSender.sendMessage(chatId, winningsLog.toString());
+            String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
             String adminLog = String.format(
-                    "📅 [%s] Lotereya o‘ynaldi 🎟\n" +
-                            "👤 Chat ID: %d\n" +
+                    "Lotereya o‘ynaldi 🎟\n" +
+                            "👤 User ID [%s] %s\n" +
                             "🎫 O‘ynalgan chiptalar: %d ta\n" +
                             "💰 Jami yutuq: %,d so‘m\n" +
-                            "💸 Yangi balans: %,d so‘m",
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    chatId, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue());
+                            "💸 Yangi balans: %,d so‘m\n",
+                        "📅 [%s]",
+                    chatId,number, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue(),  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(adminLog);
 
             sendLotteryMenu(chatId);
