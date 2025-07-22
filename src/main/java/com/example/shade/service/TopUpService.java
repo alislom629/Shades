@@ -746,7 +746,7 @@ public class TopUpService {
                     .longValue() / 1000;
             messageText = String.format(
                     "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
-                            "Karta: %s\n" +
+                            "Karta: `%s`\n" +
                             "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
                             "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
                             "1000 UZS ----> %s RUB kurs narxida\n\n" +
@@ -761,7 +761,7 @@ public class TopUpService {
         } else {
             messageText = String.format(
                     "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
-                            "Karta: %s\n" +
+                            "Karta:   `%s`\n" +
                             "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
                             "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
                             "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida '%s' tugmasini bosing!\n" +

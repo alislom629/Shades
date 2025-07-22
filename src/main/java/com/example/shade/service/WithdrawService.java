@@ -499,7 +499,7 @@ public class WithdrawService {
                     "#PUL \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: %s\n" +
-                            "💳 Karta raqami: %s\n" +
+                            "💳 Karta raqami: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "💵 Yechilgan: %s\n" +
                             "💵 Foydalanuvchiga tushgan: %s\n" +
