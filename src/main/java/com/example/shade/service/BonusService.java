@@ -752,8 +752,6 @@ public class BonusService {
         referrerBalance.setBalance(referrerBalance.getBalance().add(commission));
         userBalanceRepository.save(referrerBalance);
         logger.info("Credited {} UZS to referrer {} for referredChatId {}", commission, referrerChatId, referredChatId);
-        messageSender.sendMessage(referrerChatId, String.format("🎉 Siz referal orqali %,d so‘m ishlab oldingiz! Yangi balans: %,d so‘m",
-                commission.intValue(), referrerBalance.getBalance().intValue()));
     }
 
     private String sha256Hex(String input) {
