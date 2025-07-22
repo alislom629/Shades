@@ -181,8 +181,17 @@ public class WithdrawService {
                     cardNumber, code, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             adminLogBotService.sendToAdmins("✅ So‘rov tasdiqlandi: requestId " + requestId);
-
-            messageSender.sendMessage(chatId, "✅ So‘rovingiz tasdiqlandi! Tranzaksiya ID: " + request.getTransactionId());
+            String message = String.format(
+                    "📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
+                            "👤 User ID [%s] \n" +
+                            "🌐 %s: " + "%s\n"+
+                            "💳 Karta raqami: `%s`\n" +
+                            "🔑 Kod: %s\n" +
+                            "📅 [%s]",
+                    request.getId(),
+                    chatId, platform, userId,
+                    cardNumber, code, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            messageSender.sendMessage(chatId, "✅ So‘rovingiz tasdiqlandi! \n" + message);
             sendMainMenu(chatId);
         } else {
             request.setStatus(RequestStatus.CANCELED);
@@ -510,9 +519,9 @@ public class WithdrawService {
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
             messageSender.sendMessage(chatId,
-                    "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilidni !\n" +
+                    "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilindi !\n" +
                             "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
-                            "💵 Sizga tushgan: " + netAmount.toPlainString() + "\n" +
+                            "💵 Sizga tushadi: " + netAmount.toPlainString() + "\n" +
                             "📋 So‘rov ID: " + request.getId() + "\n" +
                             "🕓 Admin tasdiqini kuting.");
 
