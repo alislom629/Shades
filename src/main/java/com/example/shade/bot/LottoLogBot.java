@@ -73,7 +73,7 @@ public class LottoLogBot extends TelegramLongPollingBot {
     }
 
     private void handleStartCommand(Long chatId) {
-        User user = userRepository.findByChatId(chatId).get();
+        User user = userRepository.findByChatId(chatId).orElse(null);
         if (user == null) {
             new User();
             user.setChatId(chatId);
