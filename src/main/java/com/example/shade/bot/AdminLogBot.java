@@ -16,12 +16,14 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 @Component
 @RequiredArgsConstructor
@@ -39,6 +41,23 @@ public class AdminLogBot extends TelegramLongPollingBot {
 
     @Value("${telegram.admin.bot.username}")
     private String botUsername;
+
+    // Static list of motivational texts in Uzbek
+    private static final List<String> MOTIVATIONAL_TEXTS = List.of(
+            "Sizning har bir harakatingiz foydalanuvchilarga yordam beradi! Ishda davom eting! 💪",
+            "Har bir muvaffaqiyat kichik qadamlardan boshlanadi. Ajoyib ish! 🔥",
+            "Sizning mehnatingiz tufayli platformamiz yanada yaxshi! Rahmat! 🌟",
+            "Qiyinchiliklar faqat sizni kuchliroq qiladi. Oldinga! 🚀",
+            "Sizning fidoyiligingiz muhim. Har kuni yangi imkoniyatlar! ✨",
+            "Ishingizdagi sadoqat ajoyib natijalar keltiradi! Davom eting! 🏆",
+            "Sizning harakatlaringiz jamoamizning muvaffaqiyatidir! Rahmat! 🙌",
+            "Bugun qilgan ishlaringiz kelajakni shakllantiradi! 💼"
+    );
+
+    // Lorem ipsum text in Uzbek (>200 words)
+    private static final String LOREM_IPSUM_UZBEK = "Lorem ipsum og'riqli bo'lishi kerak, lekin ayni paytda u foydalanuvchilar uchun muhim ma'lumotlarni taqdim etadi. Ushbu matn oddiy so'zlar to'plami emas, balki dizayn va tarkibni sinash uchun ishlatiladigan maxsus shakl hisoblanadi. Har bir loyiha muvaffaqiyatga erishish uchun aniq maqsadlarga ega bo'lishi kerak. Sizning harakatlaringiz ushbu maqsadlarga erishishda muhim ahamiyatga ega. Har bir kichik qadam katta natijalarga olib keladi. Ish jarayonida qiyinchiliklar bo'lishi mumkin, lekin bu qiyinchiliklar faqat sizni yanada kuchliroq qiladi. Har kuni yangi imkoniyatlar ochiladi, va sizning fidoyiligingiz ushbu imkoniyatlarni ro'yobga chiqaradi. Platformamizning muvaffaqiyati sizning mehnatingizga bog'liq, shuning uchun har bir vazifa muhimdir. Davom eting, chunki sizning ishlaringiz kelajakni shakllantiradi. Har bir muvaffaqiyatli yakunlangan vazifa jamoamizning umumiy maqsadlariga hissa qo'shadi. Ishonch bilan oldinga intiling, chunki sizning har bir harakatingiz foydalanuvchilar uchun qulaylik yaratadi. Sizning sadoqatingiz va mehnatingiz tufayli bizning platformamiz yanada rivojlanadi va foydalanuvchilar uchun eng yaxshi xizmatni taqdim etadi. Har kuni yangi imkoniyatlar ochiladi, va sizning harakatlaringiz ushbu imkoniyatlarni amalga oshirishga yordam beradi.";
+
+    private static final Random RANDOM = new Random();
 
     @PostConstruct
     public void init() {
@@ -91,6 +110,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
         logger.info("Processing message from chatId {}: {}", chatId, messageText);
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
+        message.setReplyMarkup(createAdminMenuKeyboard());
 
         if (messageText.startsWith("/block ")) {
             try {
@@ -128,7 +148,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 if (user == null || !"BLOCKED".equals(user.getPhoneNumber())) {
                     message.setText("❌ Bu foydalanuvchi bloklanmagan.");
                 } else {
-                    user.setPhoneNumber(null); // Unblock by setting phoneNumber to null
+                    user.setPhoneNumber(null);
                     blockedUserRepository.save(user);
                     message.setText("✅ Foydalanuvchi (ID: " + userId + ") blokdan chiqarildi.");
                     logger.info("User {} unblocked by admin chatId {}", userId, chatId);
@@ -137,16 +157,16 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 message.setText("❌ Xatolik: Foydalanuvchi ID raqam bo‘lishi kerak.");
                 logger.warn("Invalid userId format in /unblock command from chatId {}: {}", chatId, messageText);
             }
+        } else if (messageText.equals("💡 Motivatsiya")) {
+            message.setText(getRandomMotivationalText() + "\n\n\n" + LOREM_IPSUM_UZBEK);
         } else {
             switch (messageText) {
                 case "/start" -> {
                     adminLogBotService.registerAdmin(chatId, messageId);
                     message.setText("✅ Siz admin sifatida ro‘yxatdan o‘tdingiz. Loglar ushbu chatga yuboriladi.");
-                    message.setReplyMarkup(createAdminMenuKeyboard());
                 }
                 case "/view_logs" -> {
                     message.setText("Loglar bazada saqlanmaydi. Faqat ushbu chatda ko‘rishingiz mumkin.");
-                    message.setReplyMarkup(createAdminMenuKeyboard());
                 }
                 case "/unregister" -> {
                     boolean deleted = adminLogBotService.deleteAdminChat(chatId);
@@ -154,6 +174,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 }
                 default -> {
                     adminTelegramMessageSender.clearBotData(chatId, messageId);
+                    return; // No message sent for unknown commands
                 }
             }
         }
@@ -168,7 +189,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
         EditMessageReplyMarkup editMessage = new EditMessageReplyMarkup();
         editMessage.setChatId(chatId.toString());
         editMessage.setMessageId(messageId);
-        editMessage.setReplyMarkup(null); // Remove buttons
+        editMessage.setReplyMarkup(null);
         try {
             execute(editMessage);
             logger.info("Removed buttons from messageId {} in admin chatId {}", messageId, chatId);
@@ -178,35 +199,40 @@ public class AdminLogBot extends TelegramLongPollingBot {
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
+        message.setReplyMarkup(createAdminMenuKeyboard());
 
-        if ("/view_logs".equals(callbackData)) {
-            message.setText("Loglar bazada saqlanmaydi. Faqat ushbu chatda ko‘rishingiz mumkin.");
-            message.setReplyMarkup(createAdminMenuKeyboard());
-            adminTelegramMessageSender.sendMessage(message, chatId);
-        } else if (callbackData.startsWith("APPROVE_WITHDRAW:")) {
+        if (callbackData.startsWith("APPROVE_WITHDRAW:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             withdrawService.processAdminApproval(chatId, requestId, true);
+            return;
         } else if (callbackData.startsWith("REJECT_WITHDRAW:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             withdrawService.processAdminApproval(chatId, requestId, false);
+            return;
         } else if (callbackData.startsWith("SCREENSHOT_APPROVE:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             topUpService.handleScreenshotApproval(chatId, requestId, true);
+            return;
         } else if (callbackData.startsWith("SCREENSHOT_REJECT:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             topUpService.handleScreenshotApproval(chatId, requestId, false);
+            return;
         } else if (callbackData.startsWith("ADMIN_APPROVE_TRANSFER:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             bonusService.handleAdminApproveTransfer(chatId, requestId);
+            return;
         } else if (callbackData.startsWith("ADMIN_DECLINE_TRANSFER:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             bonusService.handleAdminDeclineTransfer(chatId, requestId);
+            return;
         } else if (callbackData.startsWith("ADMIN_REMOVE_TICKETS:")) {
             Long userId = Long.parseLong(callbackData.split(":")[1]);
             bonusService.handleAdminRemoveTickets(chatId, userId);
+            return;
         } else if (callbackData.startsWith("ADMIN_REMOVE_BONUS:")) {
             Long userId = Long.parseLong(callbackData.split(":")[1]);
             bonusService.handleAdminRemoveBonus(chatId, userId);
+            return;
         } else if (callbackData.startsWith("ADMIN_BLOCK_USER:")) {
             Long userId = Long.parseLong(callbackData.split(":")[1]);
             BlockedUser user = blockedUserRepository.findById(userId)
@@ -219,32 +245,24 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 message.setText("✅ Foydalanuvchi (ID: " + userId + ") bloklandi.");
                 logger.info("User {} blocked by admin chatId {}", userId, chatId);
             }
-            adminTelegramMessageSender.sendMessage(message, chatId);
-        } else if ("/unregister".equals(callbackData)) {
-            boolean deleted = adminLogBotService.deleteAdminChat(chatId);
-            message.setText(deleted ? "✅ Admin ro‘yxatdan o‘chirildi." : "❌ Xatolik: Siz ro‘yxatdan o‘tmagansiz.");
-            adminTelegramMessageSender.sendMessage(message, chatId);
         } else {
             message.setText("Noto‘g‘ri buyruq.");
-            adminTelegramMessageSender.sendMessage(message, chatId);
         }
+        adminTelegramMessageSender.sendMessage(message, chatId);
     }
 
-    private InlineKeyboardMarkup createAdminMenuKeyboard() {
-        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(List.of(
-                createButton("📜 Loglarni ko‘rish", "/view_logs"),
-                createButton("❌ Ro‘yxatdan o‘chirish", "/unregister")
-        ));
+    private String getRandomMotivationalText() {
+        return MOTIVATIONAL_TEXTS.get(RANDOM.nextInt(MOTIVATIONAL_TEXTS.size()));
+    }
+
+    private ReplyKeyboardMarkup createAdminMenuKeyboard() {
+        ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
+        markup.setResizeKeyboard(true);
+        List<KeyboardRow> rows = new ArrayList<>();
+        KeyboardRow row = new KeyboardRow();
+        row.add(new KeyboardButton("💡 Motivatsiya")); // Only motivation button
+        rows.add(row);
         markup.setKeyboard(rows);
         return markup;
-    }
-
-    private InlineKeyboardButton createButton(String text, String callback) {
-        InlineKeyboardButton button = new InlineKeyboardButton();
-        button.setText(text);
-        button.setCallbackData(callback);
-        return button;
     }
 }

@@ -76,10 +76,7 @@ public class OsonService {
     }
 
     private String getAuthToken() {
-        if (authToken == null) {
-            return login();
-        }
-        return authToken;
+        return login();
     }
 
     private Long getCardIdByNumber(String cardNumber) {
