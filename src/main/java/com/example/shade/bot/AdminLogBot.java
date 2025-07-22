@@ -112,11 +112,11 @@ public class AdminLogBot extends TelegramLongPollingBot {
         message.setChatId(chatId.toString());
         message.setReplyMarkup(createAdminMenuKeyboard());
 
-        if (messageText.startsWith("/block ")) {
+        if (messageText.startsWith("/ban ")) {
             try {
                 String[] parts = messageText.split(" ");
                 if (parts.length != 2) {
-                    message.setText("❌ Xatolik: /block <userId> formatida kiriting.");
+                    message.setText("❌ Xatolik: /ban <userId> formatida kiriting.");
                     adminTelegramMessageSender.sendMessage(message, chatId);
                     return;
                 }
@@ -133,13 +133,13 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 }
             } catch (NumberFormatException e) {
                 message.setText("❌ Xatolik: Foydalanuvchi ID raqam bo‘lishi kerak.");
-                logger.warn("Invalid userId format in /block command from chatId {}: {}", chatId, messageText);
+                logger.warn("Invalid userId format in /bun command from chatId {}: {}", chatId, messageText);
             }
-        } else if (messageText.startsWith("/unblock ")) {
+        } else if (messageText.startsWith("/unban ")) {
             try {
                 String[] parts = messageText.split(" ");
                 if (parts.length != 2) {
-                    message.setText("❌ Xatolik: /unblock <userId> formatida kiriting.");
+                    message.setText("❌ Xatolik: /unban <userId> formatida kiriting.");
                     adminTelegramMessageSender.sendMessage(message, chatId);
                     return;
                 }
@@ -155,7 +155,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
                 }
             } catch (NumberFormatException e) {
                 message.setText("❌ Xatolik: Foydalanuvchi ID raqam bo‘lishi kerak.");
-                logger.warn("Invalid userId format in /unblock command from chatId {}: {}", chatId, messageText);
+                logger.warn("Invalid userId format in /unban command from chatId {}: {}", chatId, messageText);
             }
         } else if (messageText.equals("💡 Motivatsiya")) {
             message.setText(getRandomMotivationalText() + "\n\n\n" + LOREM_IPSUM_UZBEK);
