@@ -38,6 +38,7 @@ public class BonusService {
     private final BlockedUserRepository blockedUserRepository;
     private final AdminChatRepository adminChatRepository;
     private final ExchangeRateRepository exchangeRateRepository;
+    private final LottoBotService lottoBotService;
     private final LotteryService lotteryService;
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;

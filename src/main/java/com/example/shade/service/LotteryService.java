@@ -24,6 +24,7 @@ public class LotteryService {
     private static final Logger logger = LoggerFactory.getLogger(LotteryService.class);
     private final UserBalanceRepository userBalanceRepository;
     private final LotteryPrizeRepository lotteryPrizeRepository;
+    private final LottoBotService lottoBotService;
     private final Random random = new Random();
     private static final long MINIMUM_TICKETS = 36L;
     private static final long MAXIMUM_TICKETS = 100L;
@@ -88,6 +89,9 @@ public class LotteryService {
             int currentPrizeCount = 0;
             LotteryPrize selectedPrize = validPrizes.get(0); // Default to first valid prize
             for (LotteryPrize prize : validPrizes) {
+                if (prize.getNumberOfPrize()>=20000){
+                    lottoBotService.logWin(chatId,prize.getNumberOfPrize());
+                }
                 currentPrizeCount += prize.getNumberOfPrize();
                 if (randomPrizeValue < currentPrizeCount) {
                     selectedPrize = prize;
