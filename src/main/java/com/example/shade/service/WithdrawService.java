@@ -175,10 +175,11 @@ public class WithdrawService {
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: `%s`\n" +
                             "🔑 Kod: %s\n" +
-                            " 📅 [%s]",
-                    request.getId() ,number,
-                    chatId, platform, userId,
-                    cardNumber, code, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                            "💵 Foydalanuvchiga tushgan: %s\n" +
+                            "📅 [%s]",
+                    request.getId() ,
+                    chatId,number, platform, userId,
+                    cardNumber, code,request.getUniqueAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             adminLogBotService.sendToAdmins("✅ So‘rov tasdiqlandi: requestId " + requestId);
             String message = String.format(
@@ -517,7 +518,8 @@ public class WithdrawService {
                     chatId, number, platform, userId, cardNumber, code,paidAmount.toPlainString(),
                     netAmount.toPlainString(),
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-
+            request.setUniqueAmount( netAmount.longValue());
+            requestRepository.save(request);
             messageSender.sendMessage(chatId,
                     "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilindi !\n" +
                             "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
