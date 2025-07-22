@@ -188,10 +188,11 @@ public class WithdrawService {
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: `%s`\n" +
                             "🔑 Kod: %s\n" +
+                            "💵 Foydalanuvchiga tushgan: %s\n" +
                             "📅 [%s]",
                     request.getId(),
                     chatId, platform, userId,
-                    cardNumber, code, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    cardNumber, code, request.getUniqueAmount(),LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             messageSender.sendMessage(chatId, "✅ So‘rovingiz tasdiqlandi! \n" + message);
             sendMainMenu(chatId);
         } else {
