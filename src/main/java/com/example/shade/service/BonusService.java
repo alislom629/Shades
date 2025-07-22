@@ -18,6 +18,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 import javax.xml.bind.DatatypeConverter;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
@@ -745,7 +746,7 @@ public class BonusService {
         }
 
         Long referrerChatId = referral.getReferrerChatId();
-        BigDecimal commission = new BigDecimal(topUpAmount).multiply(new BigDecimal("0.0001"));
+        BigDecimal commission = new BigDecimal(topUpAmount).multiply(new BigDecimal("0.001")).setScale(2, RoundingMode.DOWN);
         UserBalance referrerBalance = userBalanceRepository.findById(referrerChatId)
                 .orElse(UserBalance.builder().chatId(referrerChatId).tickets(0L).balance(BigDecimal.ZERO).build());
         referrerBalance.setBalance(referrerBalance.getBalance().add(commission));
