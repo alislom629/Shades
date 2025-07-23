@@ -43,7 +43,10 @@ public class LottoBotService {
                 amount,
                 userId,
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                "Tabriklimiz lekin chin ko'ngildan emas :)"
+                "Tabriklimiz lekin chin ko'ngildan emas :) \n\n" +
+                        "Avtobot: @xonpeybot\n" +
+                        "Admin: @Boss9w\n" +
+                        "Chat: @Abadiy_kassa"
         );
 
         List<User> users = userRepository.findAll();
