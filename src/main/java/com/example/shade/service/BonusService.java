@@ -720,8 +720,8 @@ public class BonusService {
                             "👤 User ID [%s] %s\n" +
                             "🎫 O‘ynalgan chiptalar: %s ta\n" +
                             "💰 Jami yutuq: %s so‘m\n" +
-                            "💸 Yangi balans: %s so‘m\n",
-                        "📅 [%s]",
+                            "💸 Yangi balans: %s so‘m\n"+
+                            "📅 [%s]",
                     chatId,number, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue(),  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(adminLog);
 
