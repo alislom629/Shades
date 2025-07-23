@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramBot;
@@ -27,6 +28,21 @@ public class LottoMessageSender {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
         message.setText(text);
+        try {
+            bot.execute(message);
+            logger.info("Sent message to chatId {}: {}", chatId, text);
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send message to chatId {}: {}", chatId, e.getMessage());
+        }
+    }
+    public void sendMessage(String  chatId, String text, ReplyKeyboardMarkup replyMarkup) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(text);
+        message.setParseMode("Markdown");
+        if (replyMarkup != null) {
+            message.setReplyMarkup(replyMarkup);
+        }
         try {
             bot.execute(message);
             logger.info("Sent message to chatId {}: {}", chatId, text);

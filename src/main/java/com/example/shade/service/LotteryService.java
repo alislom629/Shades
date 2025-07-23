@@ -114,7 +114,66 @@ public class LotteryService {
         logger.info("Played {} tickets for chatId {}, won {} times with total {} UZS", numberOfPlays, chatId, winnings.size(), totalWinnings);
         return winnings;
     }
+    @Transactional
+    public Map<Long, BigDecimal> playLotteryWithDetailsLottoBot(Long chatId, Long numberOfPlays) {
 
+        List<LotteryPrize> prizes = lotteryPrizeRepository.findAll();
+        if (prizes.isEmpty()) {
+            throw new IllegalStateException("No lottery prizes configured");
+        }
+
+        // Filter prizes with non-zero amount and available count
+        List<LotteryPrize> validPrizes = prizes.stream()
+                .filter(prize -> prize.getAmount().compareTo(BigDecimal.ZERO) > 0 && prize.getNumberOfPrize() > 0)
+                .collect(Collectors.toList());
+        if (validPrizes.isEmpty()) {
+            logger.error("No valid prizes with non-zero amount and available count for chatId {}.", chatId);
+            throw new IllegalStateException("Yaroqli lotereya sovrinlari mavjud emas");
+        }
+
+        Map<Long, BigDecimal> winnings = new HashMap<>();
+        // Generate ticket IDs from 1 to numberOfPlays
+        List<Long> ticketIds = new ArrayList<>();
+        for (long i = 1; i <= numberOfPlays; i++) {
+            ticketIds.add(i);
+        }
+
+        for (long i = 0; i < numberOfPlays && !ticketIds.isEmpty(); i++) {
+            // Check if any prizes are still available
+            validPrizes = validPrizes.stream()
+                    .filter(prize -> prize.getNumberOfPrize() > 0)
+                    .collect(Collectors.toList());
+            if (validPrizes.isEmpty()) {
+                logger.warn("No prizes left for chatId {}. Breaking loop.", chatId);
+                break;
+            }
+
+            // Select a random ticket ID
+            Long selectedTicket = ticketIds.get(random.nextInt(ticketIds.size()));
+
+            // Determine prize (weighted by numberOfPrize)
+            int totalPrizeCount = validPrizes.stream().mapToInt(LotteryPrize::getNumberOfPrize).sum();
+            int randomPrizeValue = random.nextInt(totalPrizeCount);
+            int currentPrizeCount = 0;
+            LotteryPrize selectedPrize = validPrizes.get(0); // Default to first valid prize
+            for (LotteryPrize prize : validPrizes) {
+                currentPrizeCount += prize.getNumberOfPrize();
+                if (randomPrizeValue < currentPrizeCount) {
+                    selectedPrize = prize;
+                    break;
+                }
+            }
+
+            BigDecimal winAmount = selectedPrize.getAmount();
+            selectedPrize.setNumberOfPrize(selectedPrize.getNumberOfPrize() - 1); // Decrease prize count
+            lotteryPrizeRepository.save(selectedPrize); // Persist updated prize count
+            winnings.put(selectedTicket, winAmount);
+            ticketIds.remove(selectedTicket); // Remove played ticket
+        }
+
+
+        return winnings;
+    }
     public UserBalance getBalance(Long chatId) {
         return userBalanceRepository.findById(chatId)
                 .orElseThrow(() -> new IllegalStateException("User balance not found: " + chatId));
