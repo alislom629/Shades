@@ -39,10 +39,10 @@ public class LottoBotService {
         }
 
         String logMessage = String.format(
-                "Tanlangan %s ta bilet va ularning qiymatlari: %s \n\n \uD83C\uDF81 Bonus Miqdori: %s\uD83D\uDCB0 \n\uD83D\uDC64 User Id:  %s \n\uD83D\uDCC5 Date:  %s \n\uD83D\uDCB0  %s",
+                "Tanlangan %s ta bilet va ularning qiymatlari:  \n\n \uD83C\uDF81 Bonus Miqdori: %s\uD83D\uDCB0 \n\uD83D\uDC64 User Id:  `%s` \n\uD83D\uDCC5 Date:  %s \n\uD83D\uDCB0  %s",
                 numberOfTickets,
                 amount,
-                userId.toString().substring(0,3).concat("**").concat(userId.toString().substring(5)),
+                userId.toString().substring(0,3).concat("***").concat(userId.toString().substring(6)),
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 getRandomCongratulations()+"\n\n" +
                         "Avtobot: @xonpeybot\n" +
