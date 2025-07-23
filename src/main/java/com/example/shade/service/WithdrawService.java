@@ -492,8 +492,10 @@ public class WithdrawService {
         requestRepository.save(request);
 
         // Process payout immediately
-        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber).multiply(BigDecimal.valueOf(-1)).setScale(2, RoundingMode.DOWN);;
-
+        BigDecimal paidAmount = processPayout(chatId, platform, userId, code, request.getId(),cardNumber).setScale(2, RoundingMode.DOWN);;
+        if (paidAmount.longValue()<0){
+            paidAmount=paidAmount.multiply(BigDecimal.valueOf(-1));
+        }
         String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
         if (paidAmount != null) {
