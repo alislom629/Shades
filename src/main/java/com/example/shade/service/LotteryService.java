@@ -27,7 +27,7 @@ public class LotteryService {
     private final LottoBotService lottoBotService;
     private final Random random = new Random();
     private static final long MINIMUM_TICKETS = 36L;
-    private static final long MAXIMUM_TICKETS = 400L;
+    private static final long MAXIMUM_TICKETS = 100L;
 
     public void awardTickets(Long chatId, Long amount) {
         UserBalance balance = userBalanceRepository.findById(chatId)

@@ -46,7 +46,7 @@ public class BonusService {
     private static final BigDecimal MINIMUM_TOPUP = new BigDecimal("10000");
     private static final BigDecimal MAXIMUM_TOPUP = new BigDecimal("10000000");
     private static final long MINIMUM_TICKETS = 36L;
-    private static final long MAXIMUM_TICKETS = 400L;
+    private static final long MAXIMUM_TICKETS = 100L;
 
     public void startBonus(Long chatId) {
         logger.info("Starting bonus section for chatId: {}", chatId);
@@ -708,7 +708,7 @@ public class BonusService {
 
             StringBuilder winningsLog = new StringBuilder("🎉 Lotereya natijalari:\n");
             ticketWinnings.forEach((ticketNumber, amount) ->
-                    winningsLog.append(String.format("%d chipta = %,d so‘m\n", ticketNumber, amount.intValue())));
+                    winningsLog.append(String.format("%,d so‘m\n",amount.intValue())));
             winningsLog.append(String.format("Jami yutuq: %,d so‘m\nYangi balans: %,d so‘m",
                     totalWinnings.intValue(), balance.getBalance().intValue()));
 
