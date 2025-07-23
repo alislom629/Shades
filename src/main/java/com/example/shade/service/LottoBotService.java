@@ -33,7 +33,7 @@ public class LottoBotService {
     }
 
     public void logWin(long numberOfTickets, Long userId, Long amount) {
-        if (amount <= 50000) {
+        if (amount <= 20000) {
             logger.info("Win amount {} for userId {} is not greater than 20,000; no log sent", amount, userId);
             return;
         }
