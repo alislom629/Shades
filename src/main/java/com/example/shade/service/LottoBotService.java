@@ -32,18 +32,18 @@ public class LottoBotService {
         this.messageSender = messageSender;
     }
 
-    public void logWin(Long userId, int amount) {
-        if (amount <= 20000) {
+    public void logWin(Long userId, Long amount) {
+        if (amount <= 50000) {
             logger.info("Win amount {} for userId {} is not greater than 20,000; no log sent", amount, userId);
             return;
         }
 
         String logMessage = String.format(
-                "Bonus Amount: %d\nUser Id: %d\nDate: %s\nCongratulations: %s",
+                "\uD83C\uDF81 Bonus Miqdori: %d\uD83D\uDCB0 \n \uD83D\uDC64 User Id: `%d`\n \uD83D\uDCC5 Date: %s\n\uD83D\uDCB0 Congratulations: %s",
                 amount,
                 userId,
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                getRandomCongratulations()
+                "Tabriklimiz lekin chin ko'ngildan emas :)"
         );
 
         List<User> users = userRepository.findAll();

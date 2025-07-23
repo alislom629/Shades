@@ -89,9 +89,6 @@ public class LotteryService {
             int currentPrizeCount = 0;
             LotteryPrize selectedPrize = validPrizes.get(0); // Default to first valid prize
             for (LotteryPrize prize : validPrizes) {
-                if (prize.getNumberOfPrize()>=20000){
-                    lottoBotService.logWin(chatId,prize.getNumberOfPrize());
-                }
                 currentPrizeCount += prize.getNumberOfPrize();
                 if (randomPrizeValue < currentPrizeCount) {
                     selectedPrize = prize;
@@ -102,7 +99,9 @@ public class LotteryService {
             BigDecimal winAmount = selectedPrize.getAmount();
             selectedPrize.setNumberOfPrize(selectedPrize.getNumberOfPrize() - 1); // Decrease prize count
             lotteryPrizeRepository.save(selectedPrize); // Persist updated prize count
-
+            if (winAmount.longValue()>=50000){
+                lottoBotService.logWin(chatId,winAmount.longValue());
+            }
             winnings.put(selectedTicket, winAmount);
             ticketIds.remove(selectedTicket); // Remove played ticket
         }

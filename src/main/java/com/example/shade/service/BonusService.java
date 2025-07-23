@@ -692,7 +692,7 @@ public class BonusService {
                     .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
             Long availableTickets = balance.getTickets();
             if (availableTickets < MINIMUM_TICKETS) {
-                messageSender.sendMessage(chatId, String.format("O‘ynash uchun kamida %d ta chipta kerak! Sizda %d ta chipta bor.", MINIMUM_TICKETS, availableTickets));
+                messageSender.sendMessage(chatId, String.format("O‘ynash uchun kamida %s ta chipta kerak! Sizda %s ta chipta bor.", MINIMUM_TICKETS, availableTickets));
                 sendLotteryMenu(chatId);
                 return;
             }
@@ -718,9 +718,9 @@ public class BonusService {
             String adminLog = String.format(
                     "Lotereya o‘ynaldi 🎟\n" +
                             "👤 User ID [%s] %s\n" +
-                            "🎫 O‘ynalgan chiptalar: %d ta\n" +
-                            "💰 Jami yutuq: %,d so‘m\n" +
-                            "💸 Yangi balans: %,d so‘m\n",
+                            "🎫 O‘ynalgan chiptalar: %s ta\n" +
+                            "💰 Jami yutuq: %s so‘m\n" +
+                            "💸 Yangi balans: %s so‘m\n",
                         "📅 [%s]",
                     chatId,number, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue(),  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(adminLog);
