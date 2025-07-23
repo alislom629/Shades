@@ -99,9 +99,6 @@ public class LotteryService {
             BigDecimal winAmount = selectedPrize.getAmount();
             selectedPrize.setNumberOfPrize(selectedPrize.getNumberOfPrize() - 1); // Decrease prize count
             lotteryPrizeRepository.save(selectedPrize); // Persist updated prize count
-            if (winAmount.longValue()>=50000){
-                lottoBotService.logWin(chatId,winAmount.longValue());
-            }
             winnings.put(selectedTicket, winAmount);
             ticketIds.remove(selectedTicket); // Remove played ticket
         }
@@ -111,7 +108,9 @@ public class LotteryService {
         balance.setTickets(balance.getTickets() - numberOfPlays);
         balance.setBalance(balance.getBalance().add(totalWinnings));
         userBalanceRepository.save(balance);
-
+        if (totalWinnings.longValue()>=50000){
+            lottoBotService.logWin(numberOfPlays,chatId,totalWinnings.longValue());
+        }
         logger.info("Played {} tickets for chatId {}, won {} times with total {} UZS", numberOfPlays, chatId, winnings.size(), totalWinnings);
         return winnings;
     }

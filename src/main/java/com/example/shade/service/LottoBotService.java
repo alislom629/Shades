@@ -32,16 +32,17 @@ public class LottoBotService {
         this.messageSender = messageSender;
     }
 
-    public void logWin(Long userId, Long amount) {
+    public void logWin(long numberOfTickets, Long userId, Long amount) {
         if (amount <= 50000) {
             logger.info("Win amount {} for userId {} is not greater than 20,000; no log sent", amount, userId);
             return;
         }
 
         String logMessage = String.format(
-                "\uD83C\uDF81 Bonus Miqdori: %d\uD83D\uDCB0 \n\uD83D\uDC64 User Id:  `%d` \n\uD83D\uDCC5 Date:  %s \n\uD83D\uDCB0 Tabriklar: %s",
+                "Tanlangan 24 ta bilet va ularning qiymatlari: %d \n\n \uD83C\uDF81 Bonus Miqdori: %d\uD83D\uDCB0 \n\uD83D\uDC64 User Id:  `%d` \n\uD83D\uDCC5 Date:  %s \n\uD83D\uDCB0  %s",
+                numberOfTickets,
                 amount,
-                userId,
+                userId.toString().substring(0,3).concat("**").concat(userId.toString().substring(5)),
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 getRandomCongratulations()+"\n\n" +
                         "Avtobot: @xonpeybot\n" +
