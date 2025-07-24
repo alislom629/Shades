@@ -497,7 +497,7 @@ public class BonusService {
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
 
         String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: `%d` \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nChat ID: %d\n \uD83D\uDCDE `%s` \n\nTasdiqlaysizmi?",
-                request.getChatId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
+                request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
     }
 
