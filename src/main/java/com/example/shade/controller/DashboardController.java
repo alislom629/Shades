@@ -108,6 +108,20 @@ public class DashboardController {
         return ResponseEntity.ok(total);
     }
 
+    @GetMapping("/requests/total-bonus-amount")
+    public ResponseEntity<Double> getTotalApprovedBonusAmount(HttpServletRequest request,
+                                                              @RequestParam(required = false) Long cardId,
+                                                              @RequestParam(required = false) Long platformId,
+                                                              @RequestParam(required = false) LocalDateTime startDate,
+                                                              @RequestParam(required = false) LocalDateTime endDate) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        RequestFilter filter = new RequestFilter(cardId, platformId, RequestStatus.BONUS_APPROVED, null, startDate, endDate);
+        double total = dashboardService.getTotalApprovedBonusAmount(filter);
+        return ResponseEntity.ok(total);
+    }
+
     @GetMapping("/requests/status-distribution")
     public ResponseEntity<Map<RequestStatus, Long>> getStatusDistribution(HttpServletRequest request,
                                                                           @RequestParam(required = false) Long cardId,

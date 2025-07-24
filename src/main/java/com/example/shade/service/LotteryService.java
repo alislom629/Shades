@@ -36,10 +36,27 @@ public class LotteryService {
                         .tickets(0L)
                         .balance(BigDecimal.ZERO)
                         .build());
-        Long tickets = amount / 30000;
-        balance.setTickets(balance.getTickets() + tickets);
+        balance.setTickets(balance.getTickets() + amount);
         userBalanceRepository.save(balance);
-        logger.info("Awarded {} tickets to chatId {}", tickets, chatId);
+        logger.info("Awarded {} tickets to chatId {}", amount, chatId);
+    }
+
+    @Transactional
+    public void deleteTickets(Long chatId) {
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalStateException("User balance not found: " + chatId));
+        balance.setTickets(0L);
+        userBalanceRepository.save(balance);
+        logger.info("Deleted all tickets for chatId {}", chatId);
+    }
+
+    @Transactional
+    public void deleteBalance(Long chatId) {
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalStateException("User balance not found: " + chatId));
+        balance.setBalance(BigDecimal.ZERO);
+        userBalanceRepository.save(balance);
+        logger.info("Reset balance for chatId {}", chatId);
     }
 
     @Transactional
@@ -114,9 +131,9 @@ public class LotteryService {
         logger.info("Played {} tickets for chatId {}, won {} times with total {} UZS", numberOfPlays, chatId, winnings.size(), totalWinnings);
         return winnings;
     }
+
     @Transactional
     public Map<Long, BigDecimal> playLotteryWithDetailsLottoBot(Long chatId, Long numberOfPlays) {
-
         List<LotteryPrize> prizes = lotteryPrizeRepository.findAll();
         if (prizes.isEmpty()) {
             throw new IllegalStateException("No lottery prizes configured");
@@ -171,9 +188,9 @@ public class LotteryService {
             ticketIds.remove(selectedTicket); // Remove played ticket
         }
 
-
         return winnings;
     }
+
     public UserBalance getBalance(Long chatId) {
         return userBalanceRepository.findById(chatId)
                 .orElseThrow(() -> new IllegalStateException("User balance not found: " + chatId));

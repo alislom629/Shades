@@ -71,4 +71,44 @@ public class LotteryController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @DeleteMapping("/lottery/tickets/{chatId}")
+    public ResponseEntity<Void> deleteTickets(@PathVariable Long chatId, HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            lotteryService.deleteTickets(chatId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/lottery/balance/{chatId}")
+    public ResponseEntity<Void> deleteBalance(@PathVariable Long chatId, HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            lotteryService.deleteBalance(chatId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/lottery/tickets/{chatId}")
+    public ResponseEntity<UserBalance> addTickets(@PathVariable Long chatId, @RequestParam Long amount, HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+        try {
+            lotteryService.awardTickets(chatId, amount);
+            UserBalance balance = lotteryService.getBalance(chatId);
+            return ResponseEntity.ok(balance);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

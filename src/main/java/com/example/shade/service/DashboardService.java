@@ -46,6 +46,9 @@ public class DashboardService {
         double totalApprovedTopUpAmount = getTotalApprovedTopUpAmount(new RequestFilter(
                 filter.getCardId(), filter.getPlatformId(), RequestStatus.APPROVED, RequestType.TOP_UP,
                 filter.getStartDate(), filter.getEndDate()));
+        double totalApprovedBonusAmount = getTotalApprovedBonusAmount(new RequestFilter(
+                filter.getCardId(), filter.getPlatformId(), RequestStatus.BONUS_APPROVED, null,
+                filter.getStartDate(), filter.getEndDate()));
         Map<RequestStatus, Long> statusDistribution = getStatusDistribution(filter);
         Map<String, Long> requestsByPlatform = getRequestsByPlatform(filter);
         Map<String, Long> requestsByDate = getRequestsByDate(filter);
@@ -64,7 +67,7 @@ public class DashboardService {
         return new DashboardStats(totalRequests, approvedRequests, pendingRequests, pendingAdminRequests,
                 canceledRequests, failedRequests, totalApprovedWithdrawalAmount, statusDistribution, requestsByPlatform,
                 requestsByDate, amountByPlatform, averageApprovedAmount, topUsers, recentRequests,
-                totalApprovedTopUpAmount, platformGraphData);
+                totalApprovedTopUpAmount, totalApprovedBonusAmount, platformGraphData);
     }
 
     public long getRequestCount(RequestFilter filter) {
@@ -104,6 +107,24 @@ public class DashboardService {
     public double getTotalApprovedTopUpAmount(RequestFilter filter) {
         List<HizmatRequest> requests = requestRepository.findByFilters(
                 filter.getCardId(), filter.getPlatformId(), RequestStatus.APPROVED, RequestType.TOP_UP);
+        if (filter.getStartDate() != null) {
+            requests = requests.stream()
+                    .filter(r -> !r.getCreatedAt().isBefore(filter.getStartDate()))
+                    .collect(Collectors.toList());
+        }
+        if (filter.getEndDate() != null) {
+            requests = requests.stream()
+                    .filter(r -> !r.getCreatedAt().isAfter(filter.getEndDate()))
+                    .collect(Collectors.toList());
+        }
+        return requests.stream()
+                .mapToDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
+                .sum();
+    }
+
+    public double getTotalApprovedBonusAmount(RequestFilter filter) {
+        List<HizmatRequest> requests = requestRepository.findByFilters(
+                filter.getCardId(), filter.getPlatformId(), RequestStatus.BONUS_APPROVED, null);
         if (filter.getStartDate() != null) {
             requests = requests.stream()
                     .filter(r -> !r.getCreatedAt().isBefore(filter.getStartDate()))
