@@ -189,7 +189,7 @@ public class AdminLogBot extends TelegramLongPollingBot {
         EditMessageReplyMarkup editMessage = new EditMessageReplyMarkup();
         editMessage.setChatId(chatId.toString());
         editMessage.setMessageId(messageId);
-        editMessage.setReplyMarkup(null);
+//        editMessage.setReplyMarkup(null);
         try {
             execute(editMessage);
             logger.info("Removed buttons from messageId {} in admin chatId {}", messageId, chatId);
