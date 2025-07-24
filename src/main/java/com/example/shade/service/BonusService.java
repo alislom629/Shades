@@ -496,7 +496,7 @@ public class BonusService {
     private void sendAdminApprovalRequest(Long chatId, HizmatRequest request) {
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
 
-        String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: `%d` \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nChat ID: %d\n \uD83D\uDCDE `%s` \n\nTasdiqlaysizmi?",
+        String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: `%d` \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nFoydalanuvchi: %d \n \uD83D\uDCDE %s \n\nTasdiqlaysizmi?",
                 request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
     }
@@ -576,9 +576,10 @@ public class BonusService {
                 logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", request.getChatId(), userId, amount);
                 messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
                 sessionService.clearMessageIds(request.getChatId());
+                String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
 
-                String message = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n\n 📅 [%s]",
-                       request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                String message = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n 📅 [%s]",
+                       request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
                 String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
@@ -593,14 +594,14 @@ public class BonusService {
                         : "Platform javob bermadi.";
                 logger.error("❌ Transfer failed for chatId {}: {}", request.getChatId(), error);
                 messageSender.sendMessage(request.getChatId(), "❌ Platformga to‘lov yuborilmadi: " + error);
-                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + error + " (Chat ID: " + request.getChatId() + ")");
+                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + error + " (Foydalanuvchi: " + request.getChatId() + ")");
                 handleTransferFailure(chatId, request);
 
             }
         } catch (Exception e) {
             logger.error("❌ Error transferring top-up to platform for chatId {}: {}", request.getChatId(), e.getMessage());
             messageSender.sendMessage(request.getChatId(), "❌ To‘lov yuborishda xatolik yuz berdi. Qayta urinib ko‘ring.");
-            adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + e.getMessage() + " (Chat ID: " + request.getChatId() + ")");
+            adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + e.getMessage() + " (Foydalanuvchi: " + request.getChatId() + ")");
         }
 
         sendMainMenu(request.getChatId());
@@ -653,7 +654,7 @@ public class BonusService {
         message.setText("To‘ldirish so‘rovingiz rad etildi.");
         message.setReplyMarkup(backButtonKeyboard());
         messageSender.sendMessage(message, request.getChatId() );
-        adminLogBotService.sendToAdmins("So‘rov rad etildi: Chat ID " + request.getChatId() + ", Request ID: " + requestId);
+        adminLogBotService.sendToAdmins("So‘rov rad etildi: Foydalanuvchi: " + request.getChatId() + ", Request ID: " + requestId);
     }
 
     public void handleAdminRemoveTickets(Long chatId, Long userChatId) {
@@ -668,7 +669,7 @@ public class BonusService {
         userBalanceRepository.save(balance);
 
         messageSender.sendMessage(userChatId, "Sizning chiptalaringiz o‘chirildi.");
-        adminLogBotService.sendToAdmins("Chiptalar o‘chirildi: Chat ID " + userChatId);
+        adminLogBotService.sendToAdmins("Chiptalar o‘chirildi: Foydalanuvchi: " + userChatId);
     }
 
     public void handleAdminRemoveBonus(Long chatId, Long userChatId) {
@@ -683,7 +684,7 @@ public class BonusService {
         userBalanceRepository.save(balance);
 
         messageSender.sendMessage(userChatId, "Sizning bonus balansingiz o‘chirildi.");
-        adminLogBotService.sendToAdmins("Bonus balansi o‘chirildi: Chat ID " + userChatId);
+        adminLogBotService.sendToAdmins("Bonus balansi o‘chirildi: Foydalanuvchi: " + userChatId);
     }
 
     public void handleAdminBlockUser(Long chatId, Long userChatId) {
@@ -696,7 +697,7 @@ public class BonusService {
         blockedUserRepository.save(blockedUser);
 
         messageSender.sendMessage(userChatId, "Sizning hisobingiz bloklandi.");
-        adminLogBotService.sendToAdmins("Foydalanuvchi bloklandi: Chat ID " + userChatId);
+        adminLogBotService.sendToAdmins("Foydalanuvchi bloklandi: Foydalanuvchi: " + userChatId);
     }
 
     private void playLottery(Long chatId) {
