@@ -308,7 +308,8 @@ public class BonusService {
         String fullName = sessionService.getUserData(chatId, "fullName");
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(String.format("Ma'lumotlarni tekshiring:\n\n👤 F.I.O: %s\nPlatforma: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\nTo‘ldirishni tasdiqlaysizmi?",
+        message.setText(String.format("Ma'lumotlarni tekshiring:\n\n 👤 Id Raqam: `%s` \n F.I.O: %s\nPlatforma: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\nTo‘ldirishni tasdiqlaysizmi?",
+                userId,
                 fullName, platform, userId, amount.intValue()));
         message.setReplyMarkup(createConfirmKeyboard());
         messageSender.sendMessage(message, chatId);
@@ -576,7 +577,9 @@ public class BonusService {
                 messageSender.sendMessage(request.getChatId(), String.format("✅ %,d  %s  %s platformasiga to‘ldirildi!" +
                                 (tickets > 0 ? " Siz %d ta lotereya chiptasi oldingiz!" : ""),
                         amount, request.getCurrency(), platformName, tickets));
-                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi: Chat ID " + request.getChatId() + ", Summa: " + amount);
+                String message = String.format("✅So‘rov tasdiqlandi \n ID Raqam: `%s` :\n\n👤 F.I.O: %s\nPlatforma: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\nChat ID: %d\n\n",
+                       request.getChatId(), request.getFullName(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId);
+                adminLogBotService.sendToAdmins(message);
             } else {
                 String error = responseBody != null && responseBody.get("Message") != null
                         ? responseBody.get("Message").toString()
@@ -638,8 +641,11 @@ public class BonusService {
                 .orElseThrow(() -> new IllegalStateException("Request not found: " + requestId));
         request.setStatus(RequestStatus.CANCELED);
         requestRepository.save(request);
-
-        messageSender.sendMessage(request.getChatId(), "To‘ldirish so‘rovingiz rad etildi.");
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("To‘ldirish so‘rovingiz rad etildi.");
+        message.setReplyMarkup(backButtonKeyboard());
+        messageSender.sendMessage(message, request.getChatId() );
         adminLogBotService.sendToAdmins("So‘rov rad etildi: Chat ID " + request.getChatId() + ", Request ID: " + requestId);
     }
 
@@ -792,6 +798,13 @@ public class BonusService {
         rows.add(List.of(createButton("🎟 Lotereya", "BONUS_LOTTERY")));
         rows.add(List.of(createButton("🤝 Referal", "BONUS_REFERRAL")));
         rows.add(List.of(createButton("💰 Pul to‘ldirish", "BONUS_TOPUP")));
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+    private InlineKeyboardMarkup backButtonKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(createNavigationButtons());
         markup.setKeyboard(rows);
         return markup;
