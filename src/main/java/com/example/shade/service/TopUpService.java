@@ -92,13 +92,13 @@ public class TopUpService {
                 sessionService.setUserData(chatId, "amount", "10000");
                 sessionService.setUserState(chatId, "TOPUP_CONFIRMATION");
                 sessionService.addNavigationState(chatId, "TOPUP_AMOUNT_INPUT");
-                sendConfirmation(chatId);
+                initiateTopUpRequest(chatId);
             }
             case "TOPUP_AMOUNT_10000000" -> {
                 sessionService.setUserData(chatId, "amount", "10000000");
                 sessionService.setUserState(chatId, "TOPUP_CONFIRMATION");
                 sessionService.addNavigationState(chatId, "TOPUP_AMOUNT_INPUT");
-                sendConfirmation(chatId);
+                initiateTopUpRequest(chatId);
             }
             case "TOPUP_CONFIRM" -> initiateTopUpRequest(chatId);
             case "TOPUP_PAYMENT_CONFIRM" -> verifyPayment(chatId);
@@ -155,7 +155,6 @@ public class TopUpService {
                 sessionService.setUserState(chatId, "TOPUP_AMOUNT_INPUT");
                 sendAmountInput(chatId);
             }
-            case "TOPUP_CONFIRMATION" -> sendConfirmation(chatId);
             case "TOPUP_PAYMENT_CONFIRM" -> {
                 sessionService.setUserState(chatId, "TOPUP_PAYMENT_CONFIRM");
                 sendPaymentInstruction(chatId);
@@ -315,7 +314,7 @@ public class TopUpService {
             sessionService.setUserData(chatId, "amount", String.valueOf(amount));
             sessionService.setUserState(chatId, "TOPUP_CONFIRMATION");
             sessionService.addNavigationState(chatId, "TOPUP_AMOUNT_INPUT");
-            sendConfirmation(chatId);
+            initiateTopUpRequest(chatId);
         } catch (NumberFormatException e) {
             logger.warn("Invalid amount format for chatId {}: {}", chatId, amountText);
             sendMessageWithNavigation(chatId, "Iltimos, to‘g‘ri summa kiriting (faqat raqamlar):");
@@ -458,7 +457,7 @@ public class TopUpService {
                 messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
                 sessionService.clearMessageIds(chatId);
                 sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
-                messageSender.sendMessage(chatId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
+                messageSender.sendMessage(chatId, logMessage +
                         (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
                 sendMainMenu(chatId);
             } else {
@@ -605,7 +604,7 @@ public class TopUpService {
 
 
                 adminLogBotService.sendLog(logMessage);
-                messageSender.sendMessage(requestId, "✅ Hisob to‘ldirish muvaffaqiyatli yakunlandi!" +
+                messageSender.sendMessage(requestId, logMessage +
                         (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
             } else {
                 handleTransferFailure(requestId, request, adminCard);
@@ -851,20 +850,6 @@ public class TopUpService {
         message.setChatId(chatId);
         message.setText("Summani kiriting (10 000 - 10 000 000 so‘m):");
         message.setReplyMarkup(createAmountKeyboard());
-        messageSender.sendMessage(message, chatId);
-    }
-
-    private void sendConfirmation(Long chatId) {
-        String fullName = sessionService.getUserData(chatId, "fullName");
-        String platformUserId = sessionService.getUserData(chatId, "platformUserId");
-        String cardNumber = sessionService.getUserData(chatId, "cardNumber");
-        String amount = sessionService.getUserData(chatId, "amount");
-
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(String.format("Iltimos, ma'lumotlarni tekshiring:\n\n👤 F.I.O: %s\n🆔 ID: %s\n💳 Karta: %s\n💰 Summa: %,d so‘m",
-                fullName, platformUserId, maskCard(cardNumber), Long.parseLong(amount)));
-        message.setReplyMarkup(createConfirmKeyboard());
         messageSender.sendMessage(message, chatId);
     }
 
