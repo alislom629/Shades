@@ -637,7 +637,7 @@ public class TopUpService {
 
 
             adminLogBotService.sendLog(logMessage);
-            messageSender.sendMessage(requestId, "❌ To‘lov so‘rovingiz rad etildi. Iltimos, qayta urinib ko‘ring.");
+            messageSender.sendMessage(requestId, logMessage);
         }
 
         sessionService.clearMessageIds(requestId);
