@@ -498,7 +498,7 @@ public class BonusService {
     private void sendAdminApprovalRequest(Long chatId, HizmatRequest request) {
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
 
-        String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: `%d` \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nFoydalanuvchi: %d \n \uD83D\uDCDE %s \n\nTasdiqlaysizmi?",
+        String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: %d \n \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nFoydalanuvchi: %d \n \uD83D\uDCDE %s \n\nTasdiqlaysizmi?",
                 request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
     }
@@ -621,7 +621,7 @@ public class BonusService {
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000 ;
         String errorLogMessage = String.format(
-                "📋 So‘rov ID: %d Transfer xatosi ❌\n" +
+                "📋 So‘rov ID: %d \n Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +
                         "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
@@ -652,14 +652,17 @@ public class BonusService {
         request.setStatus(RequestStatus.CANCELED);
         requestRepository.save(request);
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
-
+        UserBalance balance = userBalanceRepository.findById(chatId)
+                .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
         String errorLogMessage = String.format(
-                "📋 So‘rov ID: %d Bonus rad etildi ❌\n" +
+                "📋 So‘rov ID: %d \n Bonus rad etildi ❌\n" +
                         "👤 User ID [%s] %s\n" +
                         "🌐 %s: " + "%s\n\n"+
+                        "💸 Bonus: %s \n"+
+                        "💰 Balans: %s so‘m\n"+
                         "📅 [%s] ",
                 request.getId(),
-                request.getChatId(),number, request.getPlatform(), request.getPlatformUserId(),
+                request.getChatId(),number, request.getPlatform(), request.getPlatformUserId(),request.getUniqueAmount(),balance.getBalance().intValue(),
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
         SendMessage message = new SendMessage();
