@@ -246,12 +246,23 @@ public class BonusService {
 
     private void sendReferralLink(Long chatId) {
         String referralLink = String.format("https://t.me/xonpay_bot?start=ref_%d", chatId);
+
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(String.format("Sizning referal havolangiz:\n%s\nUni nusxalang va do‘stlaringizga ulashing!", referralLink));
-        message.setReplyMarkup(createNavigationKeyboard());
+        message.enableMarkdown(true); // Enable Markdown formatting
+
+        message.setText(String.format(
+                "*Sizning referal havolangiz:*\n\n" +
+                        "`%s`\n\n" +
+                        "📋 Havolani bosib ushlab turing va nusxalang!",
+               referralLink
+        ));
+
+        message.setReplyMarkup(createNavigationKeyboard()); // Your existing nav buttons
         messageSender.sendMessage(message, chatId);
     }
+
+
 
     private void sendTopUpPlatformMenu(Long chatId) {
         BigDecimal balance = getReferralBalance(chatId);
