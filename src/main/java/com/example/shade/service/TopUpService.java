@@ -579,7 +579,7 @@ public class TopUpService {
 
                 bonusService.creditReferral(requestId, request.getAmount());
 
-                String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
+                String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
                 String logMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
