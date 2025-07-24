@@ -181,7 +181,6 @@ public class WithdrawService {
                     chatId,number, platform, userId,
                     cardNumber, code,request.getUniqueAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
-            adminLogBotService.sendToAdmins("✅ So‘rov tasdiqlandi: requestId " + requestId);
             String message = String.format(
                     "📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "👤 User ID [%s] \n" +
