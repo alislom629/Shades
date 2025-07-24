@@ -651,12 +651,23 @@ public class BonusService {
                 .orElseThrow(() -> new IllegalStateException("Request not found: " + requestId));
         request.setStatus(RequestStatus.CANCELED);
         requestRepository.save(request);
+        String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
+
+        String errorLogMessage = String.format(
+                "📋 So‘rov ID: %d Bonus rad etildi ❌\n" +
+                        "👤 User ID [%s] %s\n" +
+                        "🌐 %s: " + "%s\n\n"+
+                        "📅 [%s] ",
+                request.getId(),
+                request.getChatId(),number, request.getPlatform(), request.getPlatformUserId(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        );
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("To‘ldirish so‘rovingiz rad etildi.");
+        message.setText(errorLogMessage);
         message.setReplyMarkup(backButtonKeyboard());
         messageSender.sendMessage(message, request.getChatId() );
-        adminLogBotService.sendToAdmins("So‘rov rad etildi: Foydalanuvchi: " + request.getChatId() + ", Request ID: " + requestId);
+        adminLogBotService.sendToAdmins(errorLogMessage);
     }
 
     public void handleAdminRemoveTickets(Long chatId, Long userChatId) {
