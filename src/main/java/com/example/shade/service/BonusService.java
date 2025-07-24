@@ -95,8 +95,8 @@ public class BonusService {
             handleTopUpInput(chatId, "10000");
             return;
         }
-        if ("BONUS_TOPUP_AMOUNT_50000".equals(callback)) {
-            handleTopUpInput(chatId, "50000");
+        if ("BONUS_TOPUP_AMOUNT_100000".equals(callback)) {
+            handleTopUpInput(chatId, "100000");
             return;
         }
         if (callback.startsWith("ADMIN_APPROVE_TRANSFER:")) {
@@ -906,7 +906,7 @@ public class BonusService {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
                 createButton("10,000 so‘m", "BONUS_TOPUP_AMOUNT_10000"),
-                createButton("50,000 so‘m", "BONUS_TOPUP_AMOUNT_50000")
+                createButton("100,000 so‘m", "BONUS_TOPUP_AMOUNT_100000")
         ));
         rows.add(createNavigationButtons());
         markup.setKeyboard(rows);
