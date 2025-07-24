@@ -591,7 +591,7 @@ public class TopUpService {
                                 "🎟️ Chiptalar: %d\n" +
                                 "📅 [%s] ",
                         request.getId(),
-                        chatId, number,  // 🟢 Show chatId, link to phone number
+                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
                         request.getPlatform(),
                         request.getPlatformUserId(),
                         request.getUniqueAmount(),

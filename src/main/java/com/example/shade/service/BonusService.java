@@ -574,11 +574,16 @@ public class BonusService {
                 logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", request.getChatId(), userId, amount);
                 messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
                 sessionService.clearMessageIds(request.getChatId());
-                messageSender.sendMessage(request.getChatId(), String.format("✅ %,d  %s  %s platformasiga to‘ldirildi!" +
-                                (tickets > 0 ? " Siz %d ta lotereya chiptasi oldingiz!" : ""),
-                        amount, request.getCurrency(), platformName, tickets));
-                String message = String.format("✅ So‘rov tasdiqlandi \n\n 👤ID Raqam: `%d` \n Platforma: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\n 📅 [%s]",
-                       request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+                String message = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n\n 📅 [%s]",
+                       request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+
+                String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
+                        request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+                messageSender.sendMessage(request.getChatId(), bonusMessage);
+
                 adminLogBotService.sendToAdmins(message);
             } else {
                 String error = responseBody != null && responseBody.get("Message") != null
