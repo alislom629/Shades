@@ -750,7 +750,7 @@ public class TopUpService {
                             "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
                             "1000 UZS ----> %s RUB kurs narxida\n\n" +
                             "Sizga %s RUB tushadi \n\n" +
-                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida '%s' tugmasini bosing!\n" +
+                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 15 daqiqa ichida '%s' tugmasini bosing!\n" +
                             "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
                             "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
                             "TG_ID: %d #%d",
@@ -763,7 +763,7 @@ public class TopUpService {
                             "Karta:   `%s`\n" +
                             "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
                             "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
-                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 5 daqiqa ichida '%s' tugmasini bosing!\n" +
+                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 15 daqiqa ichida '%s' tugmasini bosing!\n" +
                             "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
                             "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
                             "TG_ID: %d #%d",
