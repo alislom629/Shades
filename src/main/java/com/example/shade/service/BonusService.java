@@ -652,8 +652,8 @@ public class BonusService {
         request.setStatus(RequestStatus.CANCELED);
         requestRepository.save(request);
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
-        UserBalance balance = userBalanceRepository.findById(chatId)
-                .orElse(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+        UserBalance balance = userBalanceRepository.findById(request.getChatId())
+                .orElse(UserBalance.builder().chatId(requestId).tickets(0L).balance(BigDecimal.ZERO).build());
         String errorLogMessage = String.format(
                 "📋 So‘rov ID: %d \n Bonus rad etildi ❌\n" +
                         "👤 User ID [%s] %s\n" +
@@ -665,9 +665,19 @@ public class BonusService {
                 request.getChatId(),number, request.getPlatform(), request.getPlatformUserId(),request.getUniqueAmount(),balance.getBalance().intValue(),
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
+        String userErrorLogMessage = String.format(
+                "📋 So‘rov ID: %d \n Bonus rad etildi ❌\n" +
+                        "🌐 %s: " + "%s\n"+
+                        "💸 Bonus: %s \n"+
+                        "💰 Balans: %s so‘m\n"+
+                        "📅 [%s] ",
+                request.getId(),
+                request.getPlatform(), request.getPlatformUserId(),request.getUniqueAmount(),balance.getBalance().intValue(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        );
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(errorLogMessage);
+        message.setText(userErrorLogMessage);
         message.setReplyMarkup(backButtonKeyboard());
         messageSender.sendMessage(message, request.getChatId() );
         adminLogBotService.sendToAdmins(errorLogMessage);
