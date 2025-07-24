@@ -23,9 +23,6 @@ public class DashboardService {
     @Autowired
     private HizmatRequestRepository requestRepository;
 
-    @Autowired
-    private PlatformRepository platformRepository;
-
     public DashboardStats getDashboardStats(RequestFilter filter) {
         long totalRequests = getRequestCount(filter);
         long approvedRequests = getRequestCount(new RequestFilter(
@@ -100,7 +97,7 @@ public class DashboardService {
                     .collect(Collectors.toList());
         }
         return requests.stream()
-                .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
+                .mapToDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
                 .sum();
     }
 
@@ -118,7 +115,7 @@ public class DashboardService {
                     .collect(Collectors.toList());
         }
         return requests.stream()
-                .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
+                .mapToDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
                 .sum();
     }
 
@@ -199,7 +196,7 @@ public class DashboardService {
                 .filter(r -> r.getStatus() == RequestStatus.APPROVED && r.getType() == RequestType.WITHDRAWAL)
                 .collect(Collectors.groupingBy(
                         HizmatRequest::getPlatform,
-                        Collectors.summingDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
+                        Collectors.summingDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
                 ));
     }
 
@@ -218,7 +215,7 @@ public class DashboardService {
         }
         return requests.stream()
                 .filter(r -> r.getStatus() == RequestStatus.APPROVED && r.getType() == RequestType.WITHDRAWAL)
-                .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
+                .mapToDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
                 .average()
                 .orElse(0.0);
     }
@@ -276,7 +273,7 @@ public class DashboardService {
                     map.put("platformUserId", r.getPlatformUserId());
                     map.put("fullName", r.getFullName());
                     map.put("cardNumber", r.getCardNumber());
-                    map.put("amount", r.getAmount());
+                    map.put("amount", r.getUniqueAmount());
                     map.put("status", r.getStatus());
                     map.put("type", r.getType());
                     map.put("createdAt", r.getCreatedAt());
@@ -306,11 +303,11 @@ public class DashboardService {
                     Map<String, Double> amounts = new HashMap<>();
                     double withdrawalAmount = platformRequests.stream()
                             .filter(r -> r.getType() == RequestType.WITHDRAWAL)
-                            .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
+                            .mapToDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
                             .sum();
                     double topUpAmount = platformRequests.stream()
                             .filter(r -> r.getType() == RequestType.TOP_UP)
-                            .mapToDouble(r -> r.getAmount() != null ? r.getAmount() : 0.0)
+                            .mapToDouble(r -> r.getUniqueAmount() != null ? r.getUniqueAmount() : 0.0)
                             .sum();
                     amounts.put("withdrawal", withdrawalAmount);
                     amounts.put("top_up", topUpAmount);
