@@ -1,17 +1,32 @@
 package com.example.shade.service;
 
+import com.example.shade.bot.AdminTelegramMessageSender;
+import com.example.shade.bot.MessageSender;
+import com.example.shade.model.HizmatRequest;
 import com.example.shade.model.LotteryPrize;
+import com.example.shade.model.RequestStatus;
 import com.example.shade.model.UserBalance;
+import com.example.shade.repository.BlockedUserRepository;
+import com.example.shade.repository.HizmatRequestRepository;
 import com.example.shade.repository.LotteryPrizeRepository;
 import com.example.shade.repository.UserBalanceRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +39,11 @@ public class LotteryService {
     private static final Logger logger = LoggerFactory.getLogger(LotteryService.class);
     private final UserBalanceRepository userBalanceRepository;
     private final LotteryPrizeRepository lotteryPrizeRepository;
+    private final HizmatRequestRepository hizmatRequestRepository;
     private final LottoBotService lottoBotService;
+    private final BlockedUserRepository blockedUserRepository;
+    private final MessageSender messageSender;
+    private final AdminLogBotService adminLogBotService;
     private final Random random = new Random();
     private static final long MINIMUM_TICKETS = 36L;
     private static final long MAXIMUM_TICKETS = 100L;
@@ -36,9 +55,10 @@ public class LotteryService {
                         .tickets(0L)
                         .balance(BigDecimal.ZERO)
                         .build());
-        balance.setTickets(balance.getTickets() + amount);
+        Long tickets = amount ;
+        balance.setTickets(balance.getTickets() + tickets);
         userBalanceRepository.save(balance);
-        logger.info("Awarded {} tickets to chatId {}", amount, chatId);
+        logger.info("Awarded {} tickets to chatId {}", tickets, chatId);
     }
 
     @Transactional
@@ -182,8 +202,8 @@ public class LotteryService {
             }
 
             BigDecimal winAmount = selectedPrize.getAmount();
-            selectedPrize.setNumberOfPrize(selectedPrize.getNumberOfPrize() - 1); // Decrease prize count
-            lotteryPrizeRepository.save(selectedPrize); // Persist updated prize count
+            selectedPrize.setNumberOfPrize(selectedPrize.getNumberOfPrize() - 1); // Persist updated prize count
+            lotteryPrizeRepository.save(selectedPrize);
             winnings.put(selectedTicket, winAmount);
             ticketIds.remove(selectedTicket); // Remove played ticket
         }
@@ -194,5 +214,92 @@ public class LotteryService {
     public UserBalance getBalance(Long chatId) {
         return userBalanceRepository.findById(chatId)
                 .orElseThrow(() -> new IllegalStateException("User balance not found: " + chatId));
+    }
+
+    @Transactional
+    public void awardRandomUsers(Long totalUsers, Long randomUsers, Long amount) {
+        if (randomUsers > totalUsers || totalUsers <= 0 || randomUsers <= 0 || amount <= 0) {
+            throw new IllegalStateException("Invalid parameters: totalUsers=" + totalUsers + ", randomUsers=" + randomUsers + ", amount=" + amount);
+        }
+
+        // Fetch last 'totalUsers' approved requests, ordered by creation time, with limit in query
+        Pageable pageable = PageRequest.of(0, totalUsers.intValue(), Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<HizmatRequest> requests = hizmatRequestRepository.findByFilters( RequestStatus .APPROVED, pageable);
+
+        if (requests.size() < randomUsers) {
+            throw new IllegalStateException("Not enough approved users: requested=" + randomUsers + ", available=" + requests.size());
+        }
+
+        // Get unique chat IDs
+        List<Long> chatIds = requests.stream()
+                .map(HizmatRequest::getChatId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (chatIds.size() < randomUsers) {
+            throw new IllegalStateException("Not enough unique approved users: requested=" + randomUsers + ", available=" + chatIds.size());
+        }
+
+        // Randomly select 'randomUsers' chat IDs
+        Collections.shuffle(chatIds, random);
+        List<Long> selectedChatIds = chatIds.subList(0, randomUsers.intValue());
+
+        BigDecimal awardAmount = new BigDecimal(amount);
+
+        // Update balances and send notifications
+        for (Long chatId : selectedChatIds) {
+            UserBalance balance = userBalanceRepository.findById(chatId)
+                    .orElse(UserBalance.builder()
+                            .chatId(chatId)
+                            .tickets(0L)
+                            .balance(BigDecimal.ZERO)
+                            .build());
+            balance.setBalance(balance.getBalance().add(awardAmount));
+            userBalanceRepository.save(balance);
+            String messageText = String.format(
+                    "\uD83D\uDD25Кунлик бонус\uD83D\uDD25\n" +
+                            "\n" +
+                            "Омадли уйинчи табриклаймиз. \n" +
+                            "Сиз тасодифий танлаш оркали 5,000 сум бонус ютиб  олдингиз. Бонус ботдаги балансингизга кушилди. \n\n"+
+                            "💸 Yangi balans: %s so‘m\n"+
+                            "📅 [%s]",
+                    balance.getBalance().intValue(),  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+
+            SendMessage message = new SendMessage();
+            message.setChatId(chatId);
+            message.setText(messageText);
+            message.setReplyMarkup(backButtonKeyboard());
+            messageSender.sendMessage(message,chatId);
+            String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
+
+            adminLogBotService.sendToAdmins("#Кунлик бонусда голиб болганлар\n" +
+                    "\n" +
+                    "Balans: " +balance.getBalance().intValue() + "\n" +
+                    "User ID: " +chatId + "\n" +
+                    "Telefon nomer:" +number+ "\n\n" +
+                    "\uD83D\uDCC5 "+LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+            logger.info("Awarded {} UZS to chatId {}", amount, chatId);
+        }
+    }
+    private InlineKeyboardMarkup backButtonKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
+    private List<InlineKeyboardButton> createNavigationButtons() {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
+        buttons.add(createButton("🔙 Orqaga", "BACK"));
+        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        return buttons;
+    }
+    private InlineKeyboardButton createButton(String text, String callback) {
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText(text);
+        button.setCallbackData(callback);
+        return button;
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,19 +32,29 @@ public interface HizmatRequestRepository extends JpaRepository<HizmatRequest, Lo
             @Param("status") RequestStatus status,
             @Param("type") RequestType type);
 
+    @Query("""
+                SELECT r FROM HizmatRequest r
+                WHERE (:status IS NULL OR r.status = :status)
+                ORDER BY r.createdAt DESC
+            """)
+    List<HizmatRequest> findByFilters(
+            @Param("status") RequestStatus status,
+            Pageable pageable);
+
+
     @Query("SELECT h FROM HizmatRequest h WHERE h.chatId = :chatId AND h.platform = :platform ORDER BY h.createdAt DESC")
     List<HizmatRequest> findTop3ByChatIdAndPlatformOrderByCreatedAtDesc(Long chatId, String platform);
 
     @Query("""
-    SELECT h FROM HizmatRequest h
-    WHERE h.cardNumber IS NOT NULL
-      AND h.chatId = :chatId
-      AND h.createdAt = (
-        SELECT MAX(h2.createdAt) FROM HizmatRequest h2
-        WHERE h2.cardNumber = h.cardNumber AND h2.chatId = h.chatId
-      )
-    ORDER BY h.createdAt DESC
-""")
+                SELECT h FROM HizmatRequest h
+                WHERE h.cardNumber IS NOT NULL
+                  AND h.chatId = :chatId
+                  AND h.createdAt = (
+                    SELECT MAX(h2.createdAt) FROM HizmatRequest h2
+                    WHERE h2.cardNumber = h.cardNumber AND h2.chatId = h.chatId
+                  )
+                ORDER BY h.createdAt DESC
+            """)
     List<HizmatRequest> findLatestUniqueCardNumbersByChatId(@Param("chatId") Long chatId);
 
     @Query("SELECT h FROM HizmatRequest h WHERE h.chatId = :chatId AND h.status = :status ORDER BY h.createdAt DESC limit 1")

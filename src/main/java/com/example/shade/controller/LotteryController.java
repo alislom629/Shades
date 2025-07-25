@@ -111,4 +111,21 @@ public class LotteryController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PostMapping("/lottery/award-random-users")
+    public ResponseEntity<Void> awardRandomUsers(
+            @RequestParam Long totalUsers,
+            @RequestParam Long randomUsers,
+            @RequestParam Long amount,
+            HttpServletRequest request) {
+        if (!authenticate(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            lotteryService.awardRandomUsers(totalUsers, randomUsers, amount);
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }
