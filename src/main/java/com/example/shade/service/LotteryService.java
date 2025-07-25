@@ -257,14 +257,15 @@ public class LotteryService {
             balance.setBalance(balance.getBalance().add(awardAmount));
             userBalanceRepository.save(balance);
             String messageText = String.format(
-                    "\uD83D\uDD25Кунлик бонус\uD83D\uDD25\n" +
+                    "\uD83D\uDD25Kunlik bonus\uD83D\uDD25\n" +
                             "\n" +
-                            "Омадли уйинчи табриклаймиз. \n" +
-                            "Сиз тасодифий танлаш оркали 5,000 сум бонус ютиб  олдингиз. Бонус ботдаги балансингизга кушилди. \n\n"+
-                            "💸 Yangi balans: %s so‘m\n"+
+                            "Omadli o‘yinchini tabriklaymiz.\n" +
+                            "Siz tasodifiy tanlov orqali %s so‘m bonus yutib oldingiz. Bonus botdagi balansingizga qo‘shildi.\n\n" +
+                            "💸 Yangi balans: %s so‘m\n" +
                             "📅 [%s]",
-                    balance.getBalance().intValue(),  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-
+                    amount, balance.getBalance().intValue(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
 
             SendMessage message = new SendMessage();
             message.setChatId(chatId);
@@ -273,8 +274,8 @@ public class LotteryService {
             messageSender.sendMessage(message,chatId);
             String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
-            adminLogBotService.sendToAdmins("#Кунлик бонусда голиб болганлар\n" +
-                    "\n" +
+            adminLogBotService.sendToAdmins("#Кунлик бонусда голиб болганлар\n\n" +
+                    "Kunlik bonus: " +amount+" \n"+
                     "Balans: " +balance.getBalance().intValue() + "\n" +
                     "User ID: " +chatId + "\n" +
                     "Telefon nomer:" +number+ "\n\n" +
