@@ -22,6 +22,8 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -513,6 +515,35 @@ public class BonusService {
                 request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
     }
+    public BigDecimal getCashdeskBalance(String hash, String cashierPass, String cashdeskId) {
+        RestTemplate restTemplate = new RestTemplate();
+        String baseUrl = "https://partners.servcul.com/CashdeskBotAPI";
+        String dt = ZonedDateTime.now(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"));
+
+        // Generate signature
+        String sha256Input = String.format("hash=%s&cashierpass=%s&dt=%s", hash, cashierPass, dt);
+        String sha256Result = sha256Hex(sha256Input);
+        String md5Input = String.format("dt=%s&cashierpass=%s&cashdeskid=%s", dt, cashierPass, cashdeskId);
+        String md5Result = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
+        String finalSignature = sha256Hex(sha256Result + md5Result);
+
+        // Generate confirm
+        String confirm = DigestUtils.md5DigestAsHex((cashdeskId + ":" + hash).getBytes(StandardCharsets.UTF_8));
+
+        // Build URL
+        String url = String.format("%s/Cashdesk/%s/Balance?confirm=%s&dt=%s", baseUrl, cashdeskId, confirm, dt);
+
+        // Set headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("sign", finalSignature);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        // Make GET request and extract balance
+        Map<String, Object> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class).getBody();
+        Object balanceObj = response != null ? response.get("Balance") : null;
+        return balanceObj != null ? new BigDecimal(balanceObj.toString()) : null;
+    }
 
     public void handleAdminApproveTransfer(Long chatId, Long requestId) {
         HizmatRequest request = requestRepository.findById(requestId)
@@ -591,17 +622,31 @@ public class BonusService {
                 messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
                 sessionService.clearMessageIds(request.getChatId());
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
+                BigDecimal cashdeskBalance = getCashdeskBalance(hash, cashierPass, cashdeskId);
+                if (cashdeskBalance==null){
+                    String message = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n 📅 [%s]",
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-                String message = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n 📅 [%s]",
-                       request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+                    String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+                    messageSender.sendMessage(request.getChatId(), bonusMessage);
+
+                    adminLogBotService.sendToAdmins(message);
+                }else {
+                    String message = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n  🎟 Platformada qolgan mablag': %,d \n\n 📅 [%s]",
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, cashdeskBalance.longValue(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
-                String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
-                        request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n 🆔 So'rov ID : %d \n  %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-                messageSender.sendMessage(request.getChatId(), bonusMessage);
+                    messageSender.sendMessage(request.getChatId(), bonusMessage);
 
-                adminLogBotService.sendToAdmins(message);
+                    adminLogBotService.sendToAdmins(message);
+                }
+
             } else {
                 String error = responseBody != null && responseBody.get("Message") != null
                         ? responseBody.get("Message").toString()

@@ -21,6 +21,8 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -400,7 +402,7 @@ public class TopUpService {
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
-            boolean transferSuccessful = transferToPlatform(request, adminCard);
+            BigDecimal transferSuccessful = transferToPlatform(request, adminCard);
             ExchangeRate latest = exchangeRateRepository.findLatest()
                     .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
             long amount = request.getCurrency().equals(Currency.RUB) ?
@@ -410,8 +412,8 @@ public class TopUpService {
             long rubAmount =
                     BigDecimal.valueOf(request.getUniqueAmount())
                             .multiply(latest.getUzsToRub())
-                            .longValue() / 1000 ;
-            if (transferSuccessful) {
+                            .longValue() / 1000;
+            if (transferSuccessful!=null) {
                 UserBalance balance = userBalanceRepository.findById(chatId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
@@ -431,12 +433,12 @@ public class TopUpService {
                 String logMessage = String.format(
                         "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
                                 "👤User ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n"+
+                                "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
-                                "🎟️ Chiptalar: %d\n" +
+                                "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s]",
                         request.getId(),
                         chatId,
@@ -451,8 +453,31 @@ public class TopUpService {
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
-
-                adminLogBotService.sendLog(logMessage);
+                String logMessageAdmin = String.format(
+                        "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
+                                "👤User ID [%s] %s\n" +  // Clickable number with + sign
+                                "🌐 %s: " + "%s\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
+                                "💳 Karta raqami: `%s`\n" +
+                                "🔐 Admin kartasi: `%s`\n" +
+                                "🎟️ Chiptalar: %d\n\n" +
+                                "🎟 Platformada qolgan mablag': %,d \n\n" +
+                                "📅 [%s]",
+                        request.getId(),
+                        chatId,
+                        number,
+                        request.getPlatform(),
+                        request.getPlatformUserId(),
+                        request.getUniqueAmount(),
+                        rubAmount,
+                        request.getCardNumber(),
+                        adminCard.getCardNumber(),
+                        tickets,
+                        transferSuccessful.longValue(),
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+                adminLogBotService.sendLog(logMessageAdmin);
 
                 messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
                 sessionService.clearMessageIds(chatId);
@@ -499,12 +524,12 @@ public class TopUpService {
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
-                        .longValue() / 1000 ;
+                        .longValue() / 1000;
         String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
         String errorLogMessage = String.format(
                 " 📋 So‘rov ID: %d Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +  // Clickable number with + sign
-                        "🌐 %s: " + "%s\n"+
+                        "🌐 %s: " + "%s\n" +
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta raqami: `%s`\n" +
@@ -555,14 +580,14 @@ public class TopUpService {
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
-                        .longValue() / 1000 ;
+                        .longValue() / 1000;
 
         if (approve) {
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
-            boolean transferSuccessful = transferToPlatform(request, adminCard);
-            if (transferSuccessful) {
+            BigDecimal transferSuccessful = transferToPlatform(request, adminCard);
+            if (transferSuccessful!=null) {
                 UserBalance balance = userBalanceRepository.findById(requestId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
@@ -583,12 +608,12 @@ public class TopUpService {
                 String logMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n"+
+                                "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
-                                "🎟️ Chiptalar: %d\n" +
+                                "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
                         request.getChatId(), number,  // 🟢 Show chatId, link to phone number
@@ -601,9 +626,32 @@ public class TopUpService {
                         tickets,
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
+                String adminLogMessage = String.format(
+                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                                "🌐 %s: " + "%s\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
+                                "💳 Karta raqami: `%s`\n" +
+                                "🔐 Admin kartasi: `%s`\n" +
+                                "🎟️ Chiptalar: %d\n\n" +
+                                "🎟 Platformada qolgan mablag': %,d \n\n" +
+                                "📅 [%s] ",
+                        request.getId(),
+                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getPlatform(),
+                        request.getPlatformUserId(),
+                        request.getUniqueAmount(),
+                        rubAmount,
+                        request.getCardNumber(),
+                        adminCard.getCardNumber(),
+                        tickets,
+                        transferSuccessful.longValue(),
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
 
 
-                adminLogBotService.sendLog(logMessage);
+                adminLogBotService.sendLog(adminLogMessage);
                 messageSender.sendMessage(requestId, logMessage +
                         (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
             } else {
@@ -617,7 +665,7 @@ public class TopUpService {
             String logMessage = String.format(
                     "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
-                            "🌐 %s: " + "%s\n"+
+                            "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta raqami: `%s`\n" +
@@ -644,7 +692,37 @@ public class TopUpService {
         sendMainMenu(requestId);
     }
 
-    private boolean transferToPlatform(HizmatRequest request, AdminCard adminCard) {
+    public BigDecimal getCashdeskBalance(String hash, String cashierPass, String cashdeskId) {
+        RestTemplate restTemplate = new RestTemplate();
+        String baseUrl = "https://partners.servcul.com/CashdeskBotAPI";
+        String dt = ZonedDateTime.now(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"));
+
+        // Generate signature
+        String sha256Input = String.format("hash=%s&cashierpass=%s&dt=%s", hash, cashierPass, dt);
+        String sha256Result = sha256Hex(sha256Input);
+        String md5Input = String.format("dt=%s&cashierpass=%s&cashdeskid=%s", dt, cashierPass, cashdeskId);
+        String md5Result = DigestUtils.md5DigestAsHex(md5Input.getBytes(StandardCharsets.UTF_8));
+        String finalSignature = sha256Hex(sha256Result + md5Result);
+
+        // Generate confirm
+        String confirm = DigestUtils.md5DigestAsHex((cashdeskId + ":" + hash).getBytes(StandardCharsets.UTF_8));
+
+        // Build URL
+        String url = String.format("%s/Cashdesk/%s/Balance?confirm=%s&dt=%s", baseUrl, cashdeskId, confirm, dt);
+
+        // Set headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("sign", finalSignature);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        // Make GET request and extract balance
+        Map<String, Object> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class).getBody();
+        Object balanceObj = response != null ? response.get("Balance") : null;
+        return balanceObj != null ? new BigDecimal(balanceObj.toString()) : null;
+    }
+
+    private BigDecimal transferToPlatform(HizmatRequest request, AdminCard adminCard) {
         String platformName = request.getPlatform();
         Platform platform = platformRepository.findByName(platformName)
                 .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
@@ -668,7 +746,7 @@ public class TopUpService {
             logger.error("Invalid platform credentials for platform {}: hash={}, cashierPass={}, cashdeskId={}",
                     platformName, hash, cashierPass, cashdeskId);
             messageSender.sendMessage(request.getChatId(), "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
-            return false;
+            return null;
         }
 
         String confirm = DigestUtils.md5DigestAsHex((userId + ":" + hash).getBytes(StandardCharsets.UTF_8));
@@ -704,7 +782,8 @@ public class TopUpService {
             if (response.getStatusCode().is2xxSuccessful() && Boolean.TRUE.equals(successObj)) {
                 logger.info("✅ Transfer successful for chatId {}, userId: {}, amount: {}, platform: {}",
                         request.getChatId(), userId, amount, platformName);
-                return true;
+
+                return getCashdeskBalance(hash,cashierPass,cashdeskId);
             }
 
             String errorMsg = responseBody != null && responseBody.get("Message") != null
@@ -714,17 +793,17 @@ public class TopUpService {
             logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", request.getChatId(), userId, responseBody);
             messageSender.sendMessage(request.getChatId(), "❌ Transfer xatosi: " + errorMsg);
             adminLogBotService.sendToAdmins("❌ Transfer xatosi: " + errorMsg);
-            return false;
+            return null;
 
         } catch (HttpClientErrorException e) {
             logger.error("API error for transfer, chatId {}, userId {}: {}", request.getChatId(), userId, e.getMessage());
             messageSender.sendMessage(request.getChatId(), "API xatosi: Auth yoki sign noto‘g‘ri.");
-            return false;
+            return null;
 
         } catch (Exception e) {
             logger.error("Unexpected error during transfer for chatId {}: {}", request.getChatId(), e.getMessage());
             messageSender.sendMessage(request.getChatId(), "Noma’lum xatolik. Qayta urinib ko‘ring.");
-            return false;
+            return null;
         }
     }
 
