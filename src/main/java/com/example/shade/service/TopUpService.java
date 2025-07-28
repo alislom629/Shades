@@ -1,6 +1,7 @@
 package com.example.shade.service;
 
 import com.example.shade.bot.MessageSender;
+import com.example.shade.dto.BalanceLimit;
 import com.example.shade.model.*;
 import com.example.shade.model.Currency;
 import com.example.shade.repository.*;
@@ -402,7 +403,7 @@ public class TopUpService {
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
-            BigDecimal transferSuccessful = transferToPlatform(request, adminCard);
+            BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
             ExchangeRate latest = exchangeRateRepository.findLatest()
                     .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
             long amount = request.getCurrency().equals(Currency.RUB) ?
@@ -462,7 +463,7 @@ public class TopUpService {
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Platformada qolgan mablag': %,d \n\n" +
+                                "🎟 Platformada qolgan limit: %,d %s\n\n" +
                                 "📅 [%s]",
                         request.getId(),
                         chatId,
@@ -474,7 +475,8 @@ public class TopUpService {
                         request.getCardNumber(),
                         adminCard.getCardNumber(),
                         tickets,
-                        transferSuccessful.longValue(),
+                        transferSuccessful.getLimit().longValue(),
+                        request.getCurrency().toString(),
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 adminLogBotService.sendLog(logMessageAdmin);
@@ -586,7 +588,7 @@ public class TopUpService {
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
-            BigDecimal transferSuccessful = transferToPlatform(request, adminCard);
+            BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
             if (transferSuccessful!=null) {
                 UserBalance balance = userBalanceRepository.findById(requestId)
                         .orElseGet(() -> {
@@ -635,7 +637,7 @@ public class TopUpService {
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Platformada qolgan mablag': %,d \n\n" +
+                                "🎟 Platformada qolgan limit: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
                         request.getChatId(), number,  // 🟢 Show chatId, link to phone number
@@ -646,7 +648,8 @@ public class TopUpService {
                         request.getCardNumber(),
                         adminCard.getCardNumber(),
                         tickets,
-                        transferSuccessful.longValue(),
+                        transferSuccessful.getLimit().longValue(),
+                        request.getCurrency().toString(),
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
@@ -692,7 +695,7 @@ public class TopUpService {
         sendMainMenu(requestId);
     }
 
-    public BigDecimal getCashdeskBalance(String hash, String cashierPass, String cashdeskId) {
+    public BalanceLimit getCashdeskBalance(String hash, String cashierPass, String cashdeskId) {
         RestTemplate restTemplate = new RestTemplate();
         String baseUrl = "https://partners.servcul.com/CashdeskBotAPI";
         String dt = ZonedDateTime.now(ZoneOffset.UTC)
@@ -719,10 +722,12 @@ public class TopUpService {
         // Make GET request and extract balance
         Map<String, Object> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class).getBody();
         Object balanceObj = response != null ? response.get("Balance") : null;
-        return balanceObj != null ? new BigDecimal(balanceObj.toString()) : null;
+        Object limitObj = response != null ? response.get("Limit") : null;
+
+        return balanceObj != null ? new BalanceLimit(new BigDecimal(balanceObj.toString()),new BigDecimal(limitObj.toString())) : null;
     }
 
-    private BigDecimal transferToPlatform(HizmatRequest request, AdminCard adminCard) {
+    private BalanceLimit transferToPlatform(HizmatRequest request, AdminCard adminCard) {
         String platformName = request.getPlatform();
         Platform platform = platformRepository.findByName(platformName)
                 .orElseThrow(() -> new IllegalStateException("Platform not found: " + platformName));
