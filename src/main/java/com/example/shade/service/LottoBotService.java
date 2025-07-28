@@ -39,7 +39,7 @@ public class LottoBotService {
         }
 
         String logMessage = String.format(
-                "Tanlangan %s ta bilet va ularning qiymati:  \n\n \uD83C\uDF81 Bonus Miqdori: %s\uD83D\uDCB0 \n\uD83D\uDC64 User Id:  `%s` \n\uD83D\uDCC5 Date:  %s \n\uD83D\uDCB0  %s",
+                "Tanlangan %s ta bilet va ularning qiymati:  \n\n\uD83C\uDF81 Bonus Miqdori: %,s\uD83D\uDCB0 \n\uD83D\uDC64 User Id:  `%s` \n\uD83D\uDCC5 Date:  %s \n\uD83D\uDCB0  %s",
                 numberOfTickets,
                 amount,
                 userId.toString().length() >= 7 ? userId.toString().substring(0,3).concat("***").concat(userId.toString().substring(6)) : userId.toString(),
