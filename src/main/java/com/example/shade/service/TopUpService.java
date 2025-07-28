@@ -601,7 +601,7 @@ public class TopUpService {
                         });
                 long tickets = request.getAmount() / 30_000;
                 if (tickets > 0) {
-                    lotteryService.awardTickets(requestId, request.getAmount());
+                    lotteryService.awardTickets(requestId,tickets);
                 }
 
                 bonusService.creditReferral(requestId, request.getAmount());
