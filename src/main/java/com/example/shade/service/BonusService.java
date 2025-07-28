@@ -248,7 +248,7 @@ public class BonusService {
     }
 
     private void sendReferralLink(Long chatId) {
-        String referralLink = String.format("https://t.me/xonpay_bot?start=ref_%d", chatId);
+        String referralLink = String.format("https://t.me/xonpeybot?start=ref_%d", chatId);
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);

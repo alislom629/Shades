@@ -239,13 +239,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         contactButton.setText("📞 Telefon raqamni yuborish");
         contactButton.setRequestContact(true);
         row1.add(contactButton);
-        KeyboardRow row2 = new KeyboardRow();
-        KeyboardButton menuButton = new KeyboardButton();
-        menuButton.setText("🏠 Asosiy menyu");
-        menuButton.setRequestContact(false); // Not a contact request
-        row2.add(menuButton);
         rows.add(row1);
-        rows.add(row2);
         markup.setKeyboard(rows);
         return markup;
     }
