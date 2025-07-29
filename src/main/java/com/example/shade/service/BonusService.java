@@ -559,7 +559,7 @@ public class BonusService {
 
         long tickets = request.getAmount() / 30_000;
         if (tickets > 0) {
-            lotteryService.awardTickets(request.getChatId(), request.getAmount());
+            lotteryService.awardTickets(request.getChatId(), tickets);
         }
 
         creditReferral(request.getChatId(), request.getAmount());
