@@ -62,10 +62,16 @@ public class WithdrawService {
             case "WITHDRAW_USER_ID_INPUT" -> handleUserIdInput(chatId, text);
             case "WITHDRAW_CARD_INPUT" -> handleCardInput(chatId, text);
             case "WITHDRAW_CODE_INPUT" -> handleCodeInput(chatId, text);
-            default -> messageSender.sendMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+            default -> backMenuMessage( chatId,"Iltimos, menyudan operatsiyani tanlang.");
         }
     }
-
+    public void backMenuMessage(Long chatId,String messageText) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(messageText);
+        message.setReplyMarkup(createNavigationKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
     public void handleCallback(Long chatId, String callback) {
         logger.info("Callback received for chatId {}: {}", chatId, callback);
         messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");

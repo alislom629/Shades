@@ -165,10 +165,16 @@ public class BonusService {
         } else if ("BONUS_TOPUP_INPUT".equals(state)) {
             handleTopUpInput(chatId, text);
         } else {
-            messageSender.sendMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+            backMenuMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
         }
     }
-
+    public void backMenuMessage(Long chatId,String messageText) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(messageText);
+        message.setReplyMarkup(createNavigationKeyboard());
+        messageSender.sendMessage(message, chatId);
+    }
     public void handleBack(Long chatId) {
         String lastState = sessionService.popNavigationState(chatId);
         logger.info("Handling back for bonus, chatId: {}, lastState: {}", chatId, lastState);

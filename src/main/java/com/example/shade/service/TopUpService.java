@@ -70,8 +70,16 @@ public class TopUpService {
             case "TOPUP_CARD_INPUT" -> handleCardInput(chatId, text);
             case "TOPUP_AMOUNT_INPUT" -> handleAmountInput(chatId, text);
             case "TOPUP_PAYMENT_CONFIRM" -> handlePaymentConfirmation(chatId, text);
-            default -> messageSender.sendMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+            default -> backMenuMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
         }
+    }
+
+    public void backMenuMessage(Long chatId, String messageText) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(messageText);
+        message.setReplyMarkup(createNavigationKeyboard());
+        messageSender.sendMessage(message, chatId);
     }
 
     public void handleCallback(Long chatId, String callback) {
@@ -414,7 +422,7 @@ public class TopUpService {
                     BigDecimal.valueOf(request.getUniqueAmount())
                             .multiply(latest.getUzsToRub())
                             .longValue() / 1000;
-            if (transferSuccessful!=null) {
+            if (transferSuccessful != null) {
                 UserBalance balance = userBalanceRepository.findById(chatId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
@@ -589,7 +597,7 @@ public class TopUpService {
             requestRepository.save(request);
 
             BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
-            if (transferSuccessful!=null) {
+            if (transferSuccessful != null) {
                 UserBalance balance = userBalanceRepository.findById(requestId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
@@ -601,7 +609,7 @@ public class TopUpService {
                         });
                 long tickets = request.getAmount() / 30_000;
                 if (tickets > 0) {
-                    lotteryService.awardTickets(requestId,tickets);
+                    lotteryService.awardTickets(requestId, tickets);
                 }
 
                 bonusService.creditReferral(requestId, request.getAmount());
@@ -724,7 +732,7 @@ public class TopUpService {
         Object balanceObj = response != null ? response.get("Balance") : null;
         Object limitObj = response != null ? response.get("Limit") : null;
 
-        return balanceObj != null ? new BalanceLimit(new BigDecimal(balanceObj.toString()),new BigDecimal(limitObj.toString())) : null;
+        return balanceObj != null ? new BalanceLimit(new BigDecimal(balanceObj.toString()), new BigDecimal(limitObj.toString())) : null;
     }
 
     private BalanceLimit transferToPlatform(HizmatRequest request, AdminCard adminCard) {
@@ -788,7 +796,7 @@ public class TopUpService {
                 logger.info("✅ Transfer successful for chatId {}, userId: {}, amount: {}, platform: {}",
                         request.getChatId(), userId, amount, platformName);
 
-                return getCashdeskBalance(hash,cashierPass,cashdeskId);
+                return getCashdeskBalance(hash, cashierPass, cashdeskId);
             }
 
             String errorMsg = responseBody != null && responseBody.get("Message") != null

@@ -297,6 +297,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         }
     }
 
+
     private void handleCallbackQuery(String callback, Long chatId) {
         logger.info("Processing callback from chatId {}: {}", chatId, callback);
         try {
