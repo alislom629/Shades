@@ -576,7 +576,11 @@ public class TopUpService {
         markup.setKeyboard(rows);
 
         adminLogBotService.sendToAdmins(errorLogMessage, markup);
-        messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
+        message.setReplyMarkup(createBonusMenuKeyboard());
+        messageSender.sendMessage(message, chatId);
     }
     public void handleScreenshotApproval(Long chatId, Long requestId, boolean approve) {
         HizmatRequest request = requestRepository.findById(requestId)
