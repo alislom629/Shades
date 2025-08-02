@@ -114,12 +114,23 @@ public class WithdrawService {
                     handleCardInput(chatId,  callback.split(":")[1]);
                 } else {
                     logger.warn("Unknown callback for chatId {}: {}", chatId, callback);
-                    messageSender.sendMessage(chatId, "Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+                    SendMessage message = new SendMessage();
+                    message.setChatId(chatId);
+                    message.setText("Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    messageSender.sendMessage(message, chatId);
                 }
             }
         }
     }
 
+    private InlineKeyboardMarkup createBonusMenuKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
     public void handleBack(Long chatId) {
         String lastState = sessionService.popNavigationState(chatId);
         logger.info("Handling back for chatId {}, lastState: {}", chatId, lastState);

@@ -182,7 +182,11 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 PhotoSize photo = update.getMessage().getPhoto().get(update.getMessage().getPhoto().size() - 1);
                 if (photo.getFileId() == null || photo.getFileId().isEmpty()) {
                     logger.error("Invalid photo file ID for chatId {}", chatId);
-                    messageSender.sendMessage(chatId, "Xatolik: Yuklangan rasm fayli noto‘g‘ri. Iltimos, qayta urinib ko‘ring.");
+                    SendMessage message = new SendMessage();
+                    message.setChatId(chatId);
+                    message.setText("Xatolik: Yuklangan rasm fayli noto‘g‘ri. Iltimos, qayta urinib ko‘ring.");
+                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    messageSender.sendMessage(message, chatId);
                     return;
                 }
                 GetFile getFile = new GetFile();
@@ -203,7 +207,11 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     messageSender.sendMessage(message, chatId);
                 } catch (TelegramApiException e) {
                     logger.error("Failed to process photo for chatId {}: {}", chatId, e.getMessage());
-                    messageSender.sendMessage(chatId, "Xatolik: Rasmni yuborishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
+                    SendMessage message = new SendMessage();
+                    message.setChatId(chatId);
+                    message.setText("Xatolik: Rasmni yuborishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
+                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    messageSender.sendMessage(message, chatId);
                 } finally {
                     if (downloadedFile != null && downloadedFile.exists()) {
                         if (downloadedFile.delete()) {

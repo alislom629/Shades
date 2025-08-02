@@ -658,7 +658,7 @@ public class BonusService {
                         ? responseBody.get("Message").toString()
                         : "Platform javob bermadi.";
                 logger.error("❌ Transfer failed for chatId {}: {}", request.getChatId(), error);
-                messageSender.sendMessage(request.getChatId(), "❌ Platformga to‘lov yuborilmadi: " + error);
+//                messageSender.sendMessage(request.getChatId(), "❌ Platformga to‘lov yuborilmadi: " + error);
                 adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + error + " (Foydalanuvchi: " + request.getChatId() + ")");
                 handleTransferFailure(chatId, request);
 

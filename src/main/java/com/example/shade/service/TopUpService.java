@@ -134,12 +134,22 @@ public class TopUpService {
                     sendAmountInput(chatId);
                 } else {
                     logger.warn("Unknown callback for chatId {}: {}", chatId, callback);
-                    messageSender.sendMessage(chatId, "Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+                    SendMessage message = new SendMessage();
+                    message.setChatId(chatId);
+                    message.setText("Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    messageSender.sendMessage(message, chatId);
                 }
             }
         }
     }
-
+    private InlineKeyboardMarkup createBonusMenuKeyboard() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(createNavigationButtons());
+        markup.setKeyboard(rows);
+        return markup;
+    }
     public void handleBack(Long chatId) {
         String lastState = sessionService.popNavigationState(chatId);
         logger.info("Handling back for chatId {}, lastState: {}", chatId, lastState);
@@ -202,7 +212,11 @@ public class TopUpService {
         if (hash == null || cashierPass == null || cashdeskId == null || hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
             logger.error("Invalid platform credentials for platform {}: hash={}, cashierPass={}, cashdeskId={}",
                     platformName, hash, cashierPass, cashdeskId);
-            messageSender.sendMessage(chatId, "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
+            SendMessage message = new SendMessage();
+            message.setChatId(chatId);
+            message.setText("Platform sozlamalarida xato. Administrator bilan bog‘laning.");
+            message.setReplyMarkup(createBonusMenuKeyboard());
+            messageSender.sendMessage(message, chatId);
             return;
         }
 
@@ -933,7 +947,7 @@ public class TopUpService {
                     : "Platformdan noto‘g‘ri javob qaytdi.";
 
             logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", request.getChatId(), userId, responseBody);
-            messageSender.sendMessage(request.getChatId(), "❌ Transfer xatosi: " + errorMsg);
+//            messageSender.sendMessage(request.getChatId(), "❌ Transfer xatosi: " + errorMsg);
             adminLogBotService.sendToAdmins("❌ Transfer xatosi: " + errorMsg);
             return null;
 
