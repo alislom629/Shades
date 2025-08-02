@@ -187,7 +187,7 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "#PUL \n\n 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
+                    "Pul \n\n 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: `%s`\n" +
@@ -216,7 +216,7 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "#PUL \n\n 📋 So'rov ID: %s  Pul yechib olish rad etildi ❌\n" +
+                    "Pul \n\n 📋 So'rov ID: %s  Pul yechib olish rad etildi ❌\n" +
                             "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: `%s`\n" +
@@ -525,7 +525,7 @@ public class WithdrawService {
             }
 
             String logMessage = String.format(
-                    "#PUL \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
+                    "Pul \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: %s\n" +
                             "💳 Karta raqami: `%s`\n" +
