@@ -2,8 +2,10 @@ package com.example.shade.bot;
 
 import com.example.shade.model.BlockedUser;
 import com.example.shade.model.Referral;
+import com.example.shade.model.UserBalance;
 import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.repository.ReferralRepository;
+import com.example.shade.repository.UserBalanceRepository;
 import com.example.shade.service.*;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,6 +47,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private final MessageSender messageSender;
     private final UserSessionService sessionService;
     private final AdminLogBotService adminLogBotService;
+    private final UserBalanceRepository userBalanceRepository;
 
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -143,6 +147,8 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 }
                 user.setPhoneNumber(receivedPhoneNumber);
                 blockedUserRepository.save(user);
+                userBalanceRepository.save(UserBalance.builder().chatId(chatId).tickets(0L).balance(BigDecimal.ZERO).build());
+
                 logger.info("Phone number saved for chatId {}: {}", chatId, receivedPhoneNumber);
                 sessionService.clearSession(chatId); // Clear AWAITING_PHONE_NUMBER state
 
