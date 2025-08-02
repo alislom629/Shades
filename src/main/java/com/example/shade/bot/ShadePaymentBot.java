@@ -248,8 +248,8 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
-                createButton("✅ Approve", "SCREENSHOT_APPROVE:" + chatId),
-                createButton("❌ Reject", "SCREENSHOT_REJECT:" + chatId)
+                createButton("✅ Approve", "SCREENSHOT_APPROVE_CHAT:" + chatId),
+                createButton("❌ Reject", "SCREENSHOT_REJECT_CHAT:" + chatId)
         ));
         markup.setKeyboard(rows);
         return markup;

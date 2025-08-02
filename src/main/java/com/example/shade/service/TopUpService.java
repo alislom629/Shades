@@ -414,10 +414,6 @@ public class TopUpService {
             BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
             ExchangeRate latest = exchangeRateRepository.findLatest()
                     .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-            long amount = request.getCurrency().equals(Currency.RUB) ?
-                    BigDecimal.valueOf(request.getUniqueAmount())
-                            .multiply(latest.getUzsToRub())
-                            .longValue() / 1000 : request.getUniqueAmount();
             long rubAmount =
                     BigDecimal.valueOf(request.getUniqueAmount())
                             .multiply(latest.getUzsToRub())
@@ -527,15 +523,15 @@ public class TopUpService {
     private void handleTransferFailure(Long chatId, HizmatRequest request, AdminCard adminCard) {
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-        long amount = request.getCurrency().equals(Currency.RUB) ?
-                BigDecimal.valueOf(request.getUniqueAmount())
-                        .multiply(latest.getUzsToRub())
-                        .longValue() / 1000 : request.getUniqueAmount();
+//        long amount = request.getCurrency().equals(Currency.RUB) ?
+//                BigDecimal.valueOf(request.getUniqueAmount())
+//                        .multiply(latest.getUzsToRub())
+//                        .longValue() / 1000 : request.getUniqueAmount();
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000;
-        String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
+        String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
         String errorLogMessage = String.format(
                 " 📋 So‘rov ID: %d Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +  // Clickable number with + sign
@@ -560,17 +556,16 @@ public class TopUpService {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
-                createButton("✅ Qabul qilish", "ADMIN_APPROVE_TRANSFER:" + request.getId()),
-                createButton("❌ Rad etish", "ADMIN_DECLINE_TRANSFER:" + request.getId())
+                createButton("✅ Qabul qilish", "SCREENSHOT_APPROVE:" + request.getId()),
+                createButton("❌ Rad etish", "SCREENSHOT_REJECT:" + request.getId())
         ));
         markup.setKeyboard(rows);
 
         adminLogBotService.sendToAdmins(errorLogMessage, markup);
         messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
     }
-
     public void handleScreenshotApproval(Long chatId, Long requestId, boolean approve) {
-        HizmatRequest request = requestRepository.findByChatIdAndStatus(requestId, RequestStatus.PENDING_SCREENSHOT)
+        HizmatRequest request = requestRepository.findById(requestId)
                 .orElse(null);
         if (request == null) {
             logger.error("No request found for ID {}", requestId);
@@ -583,10 +578,144 @@ public class TopUpService {
 
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-        long amount = request.getCurrency().equals(Currency.RUB) ?
+//        long amount = request.getCurrency().equals(Currency.RUB) ?
+//                BigDecimal.valueOf(request.getUniqueAmount())
+//                        .multiply(latest.getUzsToRub())
+//                        .longValue() / 1000 : request.getUniqueAmount();
+        long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
-                        .longValue() / 1000 : request.getUniqueAmount();
+                        .longValue() / 1000;
+
+        if (approve) {
+            request.setStatus(RequestStatus.APPROVED);
+            requestRepository.save(request);
+
+            BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
+            if (transferSuccessful != null) {
+                UserBalance balance = userBalanceRepository.findById(requestId)
+                        .orElseGet(() -> {
+                            UserBalance newBalance = UserBalance.builder()
+                                    .chatId(requestId)
+                                    .tickets(0L)
+                                    .balance(BigDecimal.ZERO)
+                                    .build();
+                            return userBalanceRepository.save(newBalance);
+                        });
+                long tickets = request.getAmount() / 30_000;
+                if (tickets > 0) {
+                    lotteryService.awardTickets(requestId, tickets);
+                }
+
+                bonusService.creditReferral(requestId, request.getAmount());
+
+                String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
+                String logMessage = String.format(
+                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                                "🌐 %s: " + "%s\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
+                                "💳 Karta raqami: `%s`\n" +
+                                "🔐 Admin kartasi: `%s`\n" +
+                                "🎟️ Chiptalar: %d\n\n" +
+                                "📅 [%s] ",
+                        request.getId(),
+                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getPlatform(),
+                        request.getPlatformUserId(),
+                        request.getUniqueAmount(),
+                        rubAmount,
+                        request.getCardNumber(),
+                        adminCard.getCardNumber(),
+                        tickets,
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+                String adminLogMessage = String.format(
+                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                                "🌐 %s: " + "%s\n" +
+                                "💸 Miqdor: %,d UZS\n" +
+                                "💸 Miqdor: %,d RUB\n" +
+                                "💳 Karta raqami: `%s`\n" +
+                                "🔐 Admin kartasi: `%s`\n" +
+                                "🎟️ Chiptalar: %d\n\n" +
+                                "🎟 Platformada qolgan limit: %,d %s\n\n" +
+                                "📅 [%s] ",
+                        request.getId(),
+                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getPlatform(),
+                        request.getPlatformUserId(),
+                        request.getUniqueAmount(),
+                        rubAmount,
+                        request.getCardNumber(),
+                        adminCard.getCardNumber(),
+                        tickets,
+                        transferSuccessful.getLimit().longValue(),
+                        request.getCurrency().toString(),
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+
+
+                adminLogBotService.sendLog(adminLogMessage);
+                messageSender.sendMessage(requestId, logMessage +
+                        (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
+            } else {
+                handleTransferFailure(requestId, request, adminCard);
+            }
+        } else {
+            request.setStatus(RequestStatus.CANCELED);
+            requestRepository.save(request);
+
+            String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
+            String logMessage = String.format(
+                    "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
+                            "👤ID [%s] %s\n" +
+                            "🌐 %s: " + "%s\n" +
+                            "💸 Miqdor: %,d UZS\n" +
+                            "💸 Miqdor: %,d RUB\n" +
+                            "💳 Karta raqami: `%s`\n" +
+                            "🔐 Admin kartasi: `%s`\n" +
+                            "📅 [%s] ",
+                    request.getId(),
+                    chatId, number,  // chatId as label, phone as target
+                    request.getPlatform(),
+                    request.getPlatformUserId(),
+                    request.getUniqueAmount(),
+                    rubAmount,
+                    request.getCardNumber(),
+                    adminCard.getCardNumber(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+
+
+            adminLogBotService.sendLog(logMessage);
+            messageSender.sendMessage(requestId, logMessage);
+        }
+
+        sessionService.clearMessageIds(requestId);
+        sessionService.setUserData(requestId, PAYMENT_ATTEMPTS_KEY, "0");
+        sendMainMenu(requestId);
+    }
+
+    public void handleScreenshotApprovalChat(Long chatId, Long requestId, boolean approve) {
+        HizmatRequest request = requestRepository.findByChatIdAndStatus(requestId,RequestStatus.PENDING_SCREENSHOT)
+                .orElse(null);
+        if (request == null) {
+            logger.error("No request found for ID {}", requestId);
+            adminLogBotService.sendLog("❌ Xatolik: So‘rov topilmadi. ID: " + requestId);
+            return;
+        }
+
+        AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
+                .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
+
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+//        long amount = request.getCurrency().equals(Currency.RUB) ?
+//                BigDecimal.valueOf(request.getUniqueAmount())
+//                        .multiply(latest.getUzsToRub())
+//                        .longValue() / 1000 : request.getUniqueAmount();
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())

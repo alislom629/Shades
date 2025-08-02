@@ -557,17 +557,6 @@ public class BonusService {
         HizmatRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalStateException("Request not found: " + requestId));
 
-
-        UserBalance balance = userBalanceRepository.findById(request.getChatId())
-                .orElse(UserBalance.builder().chatId(request.getChatId()).tickets(0L).balance(BigDecimal.ZERO).build());
-        balance.setBalance(balance.getBalance().subtract(new BigDecimal(request.getUniqueAmount())));
-        userBalanceRepository.save(balance);
-
-        long tickets = request.getAmount() / 30_000;
-        if (tickets > 0) {
-            lotteryService.awardTickets(request.getChatId(), tickets);
-        }
-
         creditReferral(request.getChatId(), request.getAmount());
 
         String platformName = request.getPlatform();
@@ -630,6 +619,15 @@ public class BonusService {
                 messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
                 sessionService.clearMessageIds(request.getChatId());
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
+                UserBalance balance = userBalanceRepository.findById(request.getChatId())
+                        .orElse(UserBalance.builder().chatId(request.getChatId()).tickets(0L).balance(BigDecimal.ZERO).build());
+                balance.setBalance(balance.getBalance().subtract(new BigDecimal(request.getUniqueAmount())));
+                userBalanceRepository.save(balance);
+
+                long tickets = request.getAmount() / 30_000;
+                if (tickets > 0) {
+                    lotteryService.awardTickets(request.getChatId(), tickets);
+                }
                 BalanceLimit cashdeskBalance = getCashdeskBalance(hash, cashierPass, cashdeskId);
                 if (cashdeskBalance==null){
                     String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n\uD83D\uDC64 Foydalanuvchi: `%d` \n\uD83D\uDCDE %s \n\n 📅 [%s]",

@@ -209,7 +209,16 @@ public class AdminLogBot extends TelegramLongPollingBot {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             withdrawService.processAdminApproval(chatId, requestId, false);
             return;
-        } else if (callbackData.startsWith("SCREENSHOT_APPROVE:")) {
+        }else if (callbackData.startsWith("SCREENSHOT_APPROVE_CHAT:")) {
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
+            topUpService.handleScreenshotApprovalChat(chatId, requestId, true);
+            return;
+        } else if (callbackData.startsWith("SCREENSHOT_REJECT_CHAT:")) {
+            Long requestId = Long.parseLong(callbackData.split(":")[1]);
+            topUpService.handleScreenshotApprovalChat(chatId, requestId, false);
+            return;
+        }
+        else if (callbackData.startsWith("SCREENSHOT_APPROVE:")) {
             Long requestId = Long.parseLong(callbackData.split(":")[1]);
             topUpService.handleScreenshotApproval(chatId, requestId, true);
             return;
