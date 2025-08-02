@@ -525,7 +525,7 @@ public class WithdrawService {
             }
 
             String logMessage = String.format(
-                    "Pul \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
+                    "#Pul \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: %s\n" +
                             "💳 Karta raqami: `%s`\n" +
