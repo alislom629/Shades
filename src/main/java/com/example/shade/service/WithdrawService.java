@@ -533,10 +533,10 @@ public class WithdrawService {
                     "*#Pul*\n\n" +
                             "📋 *So‘rov ID:* `%d`  — Pul yechib olish so‘rovi qabul qilindi 💸\n" +
                             "👤 *User ID:* [%s](tg://user?id=%s)\n" +
-                            "🌐 *Platforma:* `%s`\n" +
+                            "🌐 *Platforma:* #`%s`\n" +
                             "💳 *Karta raqami:* `%s`\n" +
                             "🔑 *Kod:* `%s`\n" +
-                            "💵 *Foydalanuvchiga tushgan:* `%s`\n" +
+                            "💵 *Berish:* `%s`\n" +
                             "📅 *%s*",
                     request.getId(),
                     number, chatId.toString(), platform,
