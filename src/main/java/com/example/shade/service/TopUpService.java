@@ -85,7 +85,14 @@ public class TopUpService {
 
     public void handleCallback(Long chatId, String callback) {
         logger.info("Callback received for chatId {}: {}", chatId, callback);
-        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+        if (callback.equals("TOPUP_PAYMENT_CONFIRM")){
+            List<Integer> messageIds = sessionService.getMessageIds(chatId);
+            if (!messageIds.isEmpty()) {
+                messageSender.editMessageToRemoveButtons(chatId, messageIds.get(messageIds.size() - 1));
+            }
+        }else {
+            messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+        }
         sessionService.clearMessageIds(chatId);
 
         switch (callback) {

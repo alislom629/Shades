@@ -12,6 +12,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -68,7 +69,18 @@ public class MessageSender {
         message.setReplyMarkup(replyMarkup);
         sendMessage(message, chatId);
     }
-
+    public void editMessageToRemoveButtons(Long chatId, Integer messageId) {
+        EditMessageReplyMarkup editMessage = new EditMessageReplyMarkup();
+        editMessage.setChatId(chatId.toString());
+        editMessage.setMessageId(messageId);
+        editMessage.setReplyMarkup(null); // Remove keyboard
+        try {
+            bot.execute(editMessage);
+            logger.info("Removed buttons from message {} in chat {}", messageId, chatId);
+        } catch (TelegramApiException e) {
+            logger.error("Failed to remove buttons from message {} in chat {}: {}", messageId, chatId, e.getMessage());
+        }
+    }
     public void animateAndDeleteMessages(Long chatId, List<Integer> messageIds, String animationType) {
         if (messageIds == null || messageIds.isEmpty()) {
             return;

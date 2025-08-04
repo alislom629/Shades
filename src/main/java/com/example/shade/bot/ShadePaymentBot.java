@@ -348,7 +348,14 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 }
                 default -> {
                     if (callback.startsWith("TOPUP_")) {
-                        messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                        if (callback.equals("TOPUP_PAYMENT_CONFIRM")){
+                            List<Integer> messageIds = sessionService.getMessageIds(chatId);
+                            if (!messageIds.isEmpty()) {
+                                messageSender.editMessageToRemoveButtons(chatId, messageIds.get(messageIds.size() - 1));
+                            }
+                        }else {
+                            messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
+                        }
                         topUpService.handleCallback(chatId, callback);
                     } else if (callback.startsWith("WITHDRAW_")) {
                         messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
