@@ -521,7 +521,7 @@ public class BonusService {
 
         String message = String.format(
                 "*#Bonus pul yechish so'rovi:*\n\n" +
-                        "📋 *So‘rov ID:* `%d`\n" +
+                        "\uD83C\uDD94: `%d`\n" +
                         "🌐 *%s:* `%s`\n" +
                         "💰 *Summa:* `%,d so‘m`\n" +
                         "👤 *Foydalanuvchi:* `%d`\n" +
