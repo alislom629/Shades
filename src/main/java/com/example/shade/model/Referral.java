@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Data
@@ -21,6 +22,6 @@ public class Referral {
 
     public Referral() {
         this.balance = BigDecimal.ZERO;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneId.of("GMT+5"));
     }
 }

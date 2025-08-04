@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -196,7 +197,7 @@ public class WithdrawService {
                             "📅 [%s]",
                     request.getId() ,
                     chatId,number, platform, userId,
-                    cardNumber, code,request.getUniqueAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    cardNumber, code,request.getUniqueAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             String message = String.format(
                     "📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
@@ -208,7 +209,7 @@ public class WithdrawService {
                             "📅 [%s]",
                     request.getId(),
                     chatId, platform, userId,
-                    cardNumber, code, request.getUniqueAmount(),LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    cardNumber, code, request.getUniqueAmount(),LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             messageSender.sendMessage(chatId, "✅ So‘rovingiz tasdiqlandi! \n" + message);
             sendMainMenu(chatId);
         } else {
@@ -224,7 +225,7 @@ public class WithdrawService {
                             "📅 [%s]",
                     request.getId(),chatId,number,
                      platform, userId,
-                    cardNumber, code,  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    cardNumber, code,  LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             adminLogBotService.sendToAdmins("❌ So‘rov rad etildi: requestId " + requestId);
 
@@ -308,7 +309,7 @@ public class WithdrawService {
                     userId,                        // e.g., 1322429831
                     code,
                     errorMsg,// e.g., "Euej"
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
             if (response.getStatusCode().is2xxSuccessful() && Boolean.TRUE.equals(successObj)) {
                 Object summaObj = responseBody.get("Summa");
@@ -417,7 +418,7 @@ public class WithdrawService {
                         .platformUserId(userId)
                         .fullName(fullName)
                         .status(RequestStatus.PENDING)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now(ZoneId.of("GMT+5")))
                         .type(RequestType.WITHDRAWAL)
                         .currency(currency)
                         .build();
@@ -536,7 +537,7 @@ public class WithdrawService {
                     request.getId(),
                     chatId, number, platform, userId, cardNumber, code,paidAmount.toPlainString(),
                     netAmount.toPlainString(),
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             request.setUniqueAmount( netAmount.longValue());
             requestRepository.save(request);
             messageSender.sendMessage(chatId,

@@ -23,6 +23,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -393,7 +394,7 @@ public class BonusService {
                         .platformUserId(userId)
                         .fullName(fullName)
                         .status(RequestStatus.PENDING)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now(ZoneId.of("GMT+5")))
                         .amount(0L)
                         .currency(currency)
                         .type(RequestType.TOP_UP)
@@ -631,22 +632,22 @@ public class BonusService {
                 BalanceLimit cashdeskBalance = getCashdeskBalance(hash, cashierPass, cashdeskId);
                 if (cashdeskBalance==null){
                     String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n\uD83D\uDC64 Foydalanuvchi: `%d` \n\uD83D\uDCDE %s \n\n 📅 [%s]",
-                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
                     String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
-                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
                     messageSender.sendMessage(request.getChatId(), bonusMessage);
 
                     adminLogBotService.sendToAdmins(message);
                 }else {
                     String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n  🎟 Platformada qolgan limit: %,d %s \n\n 📅 [%s]",
-                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, cashdeskBalance.getLimit().longValue(),platformData.getCurrency().toString(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, cashdeskBalance.getLimit().longValue(),platformData.getCurrency().toString(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
                     String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
-                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                            request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
                     messageSender.sendMessage(request.getChatId(), bonusMessage);
 
@@ -694,7 +695,7 @@ public class BonusService {
                 request.getId(),
                 chatId,number, request.getPlatform(), request.getPlatformUserId(),
                 request.getUniqueAmount(), rubAmount, request.getCardNumber(),
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                );
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
@@ -726,7 +727,7 @@ public class BonusService {
                         "📅 [%s] ",
                 request.getId(),
                 request.getChatId(),number, request.getPlatform(), request.getPlatformUserId(),request.getUniqueAmount(),balance.getBalance().intValue(),
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
         String userErrorLogMessage = String.format(
                 "📋 So‘rov ID: %d \n Bonus rad etildi ❌\n" +
@@ -736,7 +737,7 @@ public class BonusService {
                         "📅 [%s] ",
                 request.getId(),
                 request.getPlatform(), request.getPlatformUserId(),request.getUniqueAmount(),balance.getBalance().intValue(),
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
@@ -825,7 +826,7 @@ public class BonusService {
                             "💰 Jami yutuq: %s so‘m\n" +
                             "💸 Yangi balans: %s so‘m\n"+
                             "📅 [%s]",
-                    chatId,number, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue(),  LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    chatId,number, numberOfPlays, totalWinnings.intValue(), balance.getBalance().intValue(),  LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(adminLog);
 
             sendLotteryMenu(chatId);

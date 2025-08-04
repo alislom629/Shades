@@ -24,6 +24,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -264,7 +265,7 @@ public class LotteryService {
                             "💸 Yangi balans: %s so‘m\n" +
                             "📅 [%s]",
                     amount, balance.getBalance().intValue(),
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
 
             SendMessage message = new SendMessage();
@@ -279,7 +280,7 @@ public class LotteryService {
                     "Balans: " +balance.getBalance().intValue() + "\n" +
                     "User ID: " +chatId + "\n" +
                     "Telefon nomer:" +number+ "\n\n" +
-                    "\uD83D\uDCC5 "+LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    "\uD83D\uDCC5 "+LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
             logger.info("Awarded {} UZS to chatId {}", amount, chatId);
         }

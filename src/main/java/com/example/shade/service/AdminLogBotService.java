@@ -14,6 +14,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +73,7 @@ public class AdminLogBotService {
                 userChatId, number,  request.getPlatform(), request.getPlatformUserId(),
                 request.getUniqueAmount(), rubAmount, request.getCardNumber(),
                 request.getAdminCardId() != null ? adminCardRepository.findById(request.getAdminCardId()).map(AdminCard::getCardNumber).orElse("N/A") : "N/A",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
         // Set log message as photo caption
         sendPhoto.setCaption(logMessage);

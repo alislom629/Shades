@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -257,7 +258,7 @@ public class TopUpService {
                         .platformUserId(userId)
                         .fullName(fullName)
                         .status(RequestStatus.PENDING)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now(ZoneId.of("GMT+5")))
                         .currency(currency)
                         .amount(0L)
                         .type(RequestType.TOP_UP)
@@ -385,7 +386,7 @@ public class TopUpService {
         request.setPaymentAttempts(0);
         requestRepository.save(request);
 
-        adminCard.setLastUsed(LocalDateTime.now());
+        adminCard.setLastUsed(LocalDateTime.now(ZoneId.of("GMT+5")));
         adminCardRepository.save(adminCard);
 
         sessionService.setUserState(chatId, "TOPUP_PAYMENT_CONFIRM");
@@ -469,7 +470,7 @@ public class TopUpService {
                         request.getCardNumber(),
                         adminCard.getCardNumber(),
                         tickets,
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
                 String logMessageAdmin = String.format(
@@ -495,7 +496,7 @@ public class TopUpService {
                         tickets,
                         transferSuccessful.getLimit().longValue(),
                         request.getCurrency().toString(),
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 adminLogBotService.sendLog(logMessageAdmin);
 
@@ -563,7 +564,7 @@ public class TopUpService {
                 rubAmount,
                 request.getCardNumber(),
                 adminCard.getCardNumber(),
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
 
 
@@ -647,7 +648,7 @@ public class TopUpService {
                         request.getCardNumber(),
                         adminCard.getCardNumber(),
                         tickets,
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
@@ -671,7 +672,7 @@ public class TopUpService {
                         tickets,
                         transferSuccessful.getLimit().longValue(),
                         request.getCurrency().toString(),
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
 
@@ -703,7 +704,7 @@ public class TopUpService {
                     rubAmount,
                     request.getCardNumber(),
                     adminCard.getCardNumber(),
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
 
 
@@ -781,7 +782,7 @@ public class TopUpService {
                         request.getCardNumber(),
                         adminCard.getCardNumber(),
                         tickets,
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
@@ -805,7 +806,7 @@ public class TopUpService {
                         tickets,
                         transferSuccessful.getLimit().longValue(),
                         request.getCurrency().toString(),
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
 
@@ -837,7 +838,7 @@ public class TopUpService {
                     rubAmount,
                     request.getCardNumber(),
                     adminCard.getCardNumber(),
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
 
 

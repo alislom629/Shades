@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -55,7 +56,7 @@ public class ExchangeRateController {
         ExchangeRate exchangeRate = ExchangeRate.builder()
                 .uzsToRub(rateRequest.getUzsToRub())
                 .rubToUzs(rateRequest.getRubToUzs())
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(ZoneId.of("GMT+5")))
                 .build();
         ExchangeRate savedRate = exchangeRateRepository.save(exchangeRate);
         return ResponseEntity.ok(savedRate);

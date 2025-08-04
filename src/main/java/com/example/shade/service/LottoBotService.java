@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
@@ -43,7 +44,7 @@ public class LottoBotService {
                 numberOfTickets,
                 amount,
                 userId.toString().length() >= 7 ? userId.toString().substring(0,3).concat("***").concat(userId.toString().substring(6)) : userId.toString(),
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 getRandomCongratulations() + "\n\n" +
                         "Avtobot: @xonpeybot\n" +
                         "Admin: @Boss9w\n" +

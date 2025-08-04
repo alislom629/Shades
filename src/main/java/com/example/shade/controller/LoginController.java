@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -40,7 +41,7 @@ public class LoginController {
                 .deviceName(deviceName)
                 .city(city)
                 .country(country)
-                .loginTime(LocalDateTime.now())
+                .loginTime(LocalDateTime.now(ZoneId.of("GMT+5")))
                 .build();
         loginEventRepository.save(loginEvent);
 

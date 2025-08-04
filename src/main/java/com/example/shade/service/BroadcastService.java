@@ -76,7 +76,7 @@ public class BroadcastService {
         };
 
         // Schedule or execute immediately
-        if (scheduledTime != null && scheduledTime.isAfter(LocalDateTime.now())) {
+        if (scheduledTime != null && scheduledTime.isAfter(LocalDateTime.now(ZoneId.of("GMT+5")))) {
             taskScheduler.schedule(broadcastTask, scheduledTime.atZone(ZoneId.systemDefault()).toInstant());
             logger.info("Broadcast scheduled for {}", scheduledTime);
         } else {
