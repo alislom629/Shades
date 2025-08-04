@@ -519,10 +519,32 @@ public class BonusService {
     private void sendAdminApprovalRequest(Long chatId, HizmatRequest request) {
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
 
-        String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: %d \n \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nFoydalanuvchi: %d \n \uD83D\uDCDE %s \n\nTasdiqlaysizmi?",
-                request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
+        String message = String.format(
+                "*#Bonus pul yechish so'rovi:*\n\n" +
+                        "📋 *So‘rov ID:* `%d`\n" +
+                        "🌐 *%s:* `%s`\n" +
+                        "💰 *Summa:* `%,d so‘m`\n" +
+                        "👤 *Foydalanuvchi:* `%d`\n" +
+                        "📞 *Telefon:* `%s`\n\n" +
+                        "*Tasdiqlaysizmi?*",
+                request.getId(),
+                request.getPlatform(),
+                escapeMarkdown(request.getPlatformUserId()),
+                request.getAmount(),
+                chatId,
+                escapeMarkdown(number)
+        );
+
         adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), request.getChatId()));
     }
+    private String escapeMarkdown(String text) {
+        if (text == null) return "";
+        return text.replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("`", "\\`")
+                .replace("[", "\\[");
+    }
+
     public BalanceLimit getCashdeskBalance(String hash, String cashierPass, String cashdeskId) {
         RestTemplate restTemplate = new RestTemplate();
         String baseUrl = "https://partners.servcul.com/CashdeskBotAPI";
@@ -685,7 +707,7 @@ public class BonusService {
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000 ;
         String errorLogMessage = String.format(
-                "📋 So‘rov ID: %d \n Transfer xatosi ❌\n" +
+                "🆔: %d \n Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +
                         "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
@@ -719,7 +741,7 @@ public class BonusService {
         UserBalance balance = userBalanceRepository.findById(request.getChatId())
                 .orElse(UserBalance.builder().chatId(requestId).tickets(0L).balance(BigDecimal.ZERO).build());
         String errorLogMessage = String.format(
-                "📋 So‘rov ID: %d \n Bonus rad etildi ❌\n" +
+                "🆔: %d \n Bonus rad etildi ❌\n" +
                         "👤 User ID [%s] %s\n" +
                         "🌐 %s: " + "%s\n"+
                         "💸 Bonus: %s \n"+
@@ -730,7 +752,7 @@ public class BonusService {
                 LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
         String userErrorLogMessage = String.format(
-                "📋 So‘rov ID: %d \n Bonus rad etildi ❌\n" +
+                "🆔: %d \n Bonus rad etildi ❌\n" +
                         "🌐 %s: " + "%s\n"+
                         "💸 Bonus: %s \n"+
                         "💰 Balans: %s so‘m\n"+

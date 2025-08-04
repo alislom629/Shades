@@ -525,27 +525,37 @@ public class WithdrawService {
                 netAmount = netAmount.multiply(latest.getRubToUzs()).setScale(2, RoundingMode.DOWN);
             }
 
+            String escapedCardNumber = cardNumber
+                    .replace("_", "\\_")
+                    .replace("-", "\\-");
+
             String logMessage = String.format(
-                    "#Pul \n\n 📋 So‘rov ID: %d  Pul yechib olish so‘rovi qabul qilindi 💸\n" +
-                            "👤 User ID [%s] %s\n" +
-                            "🌐 %s: %s\n" +
-                            "💳 Karta raqami: `%s`\n" +
-                            "🔑 Kod: %s\n" +
-                            "💵 Yechilgan: %s\n" +
-                            "💵 Foydalanuvchiga tushgan: %s\n" +
-                            "📅 [%s]",
+                    "*#Pul*\n\n" +
+                            "📋 *So‘rov ID:* `%d`  — Pul yechib olish so‘rovi qabul qilindi 💸\n" +
+                            "👤 *User ID:* [%s](tg://user?id=%s)\n" +
+                            "🌐 *Platforma:* `%s`\n" +
+                            "💳 *Karta raqami:* `%s`\n" +
+                            "🔑 *Kod:* `%s`\n" +
+                            "💵 *Foydalanuvchiga tushgan:* `%s`\n" +
+                            "📅 *%s*",
                     request.getId(),
-                    chatId, number, platform, userId, cardNumber, code,paidAmount.toPlainString(),
+                    number, chatId.toString(), platform,
+                    escapedCardNumber,
+                    code,
                     netAmount.toPlainString(),
-                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    LocalDateTime.now(ZoneId.of("GMT+5"))
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
             request.setUniqueAmount( netAmount.longValue());
             requestRepository.save(request);
             messageSender.sendMessage(chatId,
-                    "✅ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilindi !\n" +
+                    "⏳ Pul yechib olish so‘rovingiz muvaffaqiyatli qabul qilindi !\n" +
                             "💸 Yechilgan: " + paidAmount.toPlainString() + "\n" +
                             "💵 Sizga tushadi: " + netAmount.toPlainString() + "\n" +
-                            "📋 So‘rov ID: " + request.getId() + "\n" +
-                            "🕓 Admin tasdiqini kuting.");
+                            "🆔: " + request.getId() + "\n" +
+                            "🕓 Admin tasdiqini kuting."+ "\n\n" +
+                            "📅 [" + LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))+"]"
+            );
 
             adminLogBotService.sendWithdrawRequestToAdmins(chatId, logMessage, request.getId());
         }

@@ -458,7 +458,7 @@ public class TopUpService {
                 bonusService.creditReferral(request.getChatId(), request.getAmount());
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
-                        "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
+                        "🆔: %d  To‘lov yakunlandi ✅\n" +
                                 "👤User ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -481,7 +481,7 @@ public class TopUpService {
                 );
 
                 String logMessageAdmin = String.format(
-                        "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
+                        "🆔: %d  To‘lov yakunlandi ✅\n" +
                                 "👤User ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -555,7 +555,7 @@ public class TopUpService {
                         .longValue() / 1000;
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
         String errorLogMessage = String.format(
-                " 📋 So‘rov ID: %d Transfer xatosi ❌\n" +
+                " 🆔: %d Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                         "🌐 %s: " + "%s\n" +
                         "💸 Miqdor: %,d UZS\n" +
@@ -637,7 +637,7 @@ public class TopUpService {
 
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
-                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -658,7 +658,7 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
-                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -695,7 +695,7 @@ public class TopUpService {
 
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
-                    "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
+                    "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
@@ -771,7 +771,7 @@ public class TopUpService {
 
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
-                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -792,7 +792,7 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
-                        " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -829,7 +829,7 @@ public class TopUpService {
 
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
-                    "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
+                    "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
@@ -986,43 +986,53 @@ public class TopUpService {
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
 
         String messageText;
+        String sanitizedCardNumber = adminCard.getCardNumber().replaceAll("\\s+", ""); // Remove all spaces
+
+// Escape card number for Markdown
+        String escapedCardNumber = sanitizedCardNumber.replace("_", "\\_").replace("-", "\\-");
+
         if (request.getCurrency().equals(Currency.RUB)) {
             long amount = BigDecimal.valueOf(request.getUniqueAmount())
                     .multiply(latest.getUzsToRub())
                     .longValue() / 1000;
+
             messageText = String.format(
-                    "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
-                            "Karta: `%s`\n" +
-                            "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
-                            "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
-                            "1000 UZS ----> %s RUB kurs narxida\n\n" +
-                            "Sizga %s RUB tushadi \n\n" +
-                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 15 daqiqa ichida '%s' tugmasini bosing!\n" +
+                    "*Diqqat!* Aniq *%,d UZS* o‘tkazing, bu sizning summangizdan farq qiladi!\n\n" +
+                            "❌ *BUNI O‘TKAZMANG:* %,d UZS\n" +
+                            "✅ *BUNI O‘TKAZING:* %,d UZS\n\n" +
+                            "*Karta:* `%s`\n" +
+                            "💱 *1000 UZS → %s RUB* kursida\n" +
+                            "💰 Sizga *%s RUB* tushadi\n\n" +
+                            "⚠\uFE0F To‘lovni amalga oshirgach, 15 daqiqa ichida *'%s'* tugmasini bosing!\n" +
                             "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
-                            "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
-                            "TG_ID: %d #%d",
-                    request.getUniqueAmount(), adminCard.getCardNumber(),
-                    request.getAmount(), request.getUniqueAmount(), latest.getUzsToRub(), amount,
+                            "⌛️ Agar to‘lov darhol amalga oshmasa, kuting va yana tugmani bosing.\n" +
+                            "`TG_ID: %d #%d`",
+                    request.getUniqueAmount(),
+                    request.getAmount(), request.getUniqueAmount(),escapedCardNumber,
+                    latest.getUzsToRub(), amount,
                     attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
         } else {
             messageText = String.format(
-                    "Diqqat! Aniq %,d UZS o‘tkazing, bu sizning summangizdan farq qiladi!\n" +
-                            "Karta:   `%s`\n" +
-                            "BUNI O‘TKAZMANG: %,d UZS ❌\n" +
-                            "BUNI O‘TKAZING: %,d UZS ✅\n\n" +
-                            "✅ To‘lovni amalga oshirganingizdan so‘ng, 15 daqiqa ichida '%s' tugmasini bosing!\n" +
+                    "*Diqqat!* Aniq *%,d UZS* o‘tkazing, bu sizning summangizdan farq qiladi!\n\n" +
+                            "❌ *BUNI O‘TKAZMANG:* %,d UZS\n" +
+                            "✅ *BUNI O‘TKAZING:* %,d UZS\n\n" +
+                            "*Karta:* `%s`\n" +
+                            "⚠\uFE0F To‘lovni amalga oshirgach, 15 daqiqa ichida *'%s'* tugmasini bosing!\n" +
                             "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
-                            "Agar to‘lov darhol amalga oshmasa, biroz kuting va yana tugmani bosing.\n" +
-                            "TG_ID: %d #%d",
-                    request.getUniqueAmount(), adminCard.getCardNumber(),
-                    request.getAmount(), request.getUniqueAmount(),
+                            "⌛️ Agar to‘lov darhol amalga oshmasa, kuting va yana tugmani bosing.\n" +
+                            "`TG_ID: %d #%d`",
+                    request.getUniqueAmount(),
+                    request.getAmount(), request.getUniqueAmount(),escapedCardNumber,
                     attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
         }
+
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(messageText);
+        message.enableMarkdown(true); // Markdown v1
         message.setReplyMarkup(createPaymentConfirmKeyboard(attempts));
         messageSender.sendMessage(message, chatId);
+
 
         List<Integer> messageIds = sessionService.getMessageIds(chatId);
         Integer messageId = messageIds.isEmpty() ? null : messageIds.get(messageIds.size() - 1);
