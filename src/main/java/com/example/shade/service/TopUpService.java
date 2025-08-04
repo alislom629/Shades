@@ -447,8 +447,8 @@ public class TopUpService {
                     lotteryService.awardTickets(chatId, tickets);
                 }
 
-                bonusService.creditReferral(chatId, request.getAmount());
-                String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
+                bonusService.creditReferral(request.getChatId(), request.getAmount());
+                String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         "📋 So‘rov ID: %d  To‘lov yakunlandi ✅\n" +
                                 "👤User ID [%s] %s\n" +  // Clickable number with + sign
@@ -625,9 +625,9 @@ public class TopUpService {
                     lotteryService.awardTickets(requestId, tickets);
                 }
 
-                bonusService.creditReferral(requestId, request.getAmount());
+                bonusService.creditReferral(request.getChatId(), request.getAmount());
 
-                String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
+                String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
@@ -685,7 +685,7 @@ public class TopUpService {
             request.setStatus(RequestStatus.CANCELED);
             requestRepository.save(request);
 
-            String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
+            String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
@@ -759,9 +759,9 @@ public class TopUpService {
                     lotteryService.awardTickets(requestId, tickets);
                 }
 
-                bonusService.creditReferral(requestId, request.getAmount());
+                bonusService.creditReferral(request.getChatId(), request.getAmount());
 
-                String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
+                String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         " 📋 So‘rov ID: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
@@ -819,7 +819,7 @@ public class TopUpService {
             request.setStatus(RequestStatus.CANCELED);
             requestRepository.save(request);
 
-            String number = blockedUserRepository.findByChatId(requestId).get().getPhoneNumber();
+            String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "📋 So‘rov ID: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +

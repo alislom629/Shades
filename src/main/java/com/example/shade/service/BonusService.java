@@ -520,7 +520,7 @@ public class BonusService {
 
         String message = String.format("#Bonus pul yechish so'rovi: \n\n So'rov ID: %d \n \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m\nFoydalanuvchi: %d \n \uD83D\uDCDE %s \n\nTasdiqlaysizmi?",
                 request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount(), chatId,number);
-        adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), chatId));
+        adminLogBotService.sendWithdrawRequestToAdmins(chatId, message, request.getId(), createAdminApprovalKeyboard(request.getId(), request.getChatId()));
     }
     public BalanceLimit getCashdeskBalance(String hash, String cashierPass, String cashdeskId) {
         RestTemplate restTemplate = new RestTemplate();
