@@ -718,7 +718,6 @@ public class TopUpService {
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
-                            "👤ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
@@ -726,7 +725,25 @@ public class TopUpService {
                             "🔐 Admin kartasi: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
-                    chatId, number,  // chatId as label, phone as target
+                    request.getPlatform(),
+                    request.getPlatformUserId(),
+                    request.getUniqueAmount(),
+                    rubAmount,
+                    request.getCardNumber(),
+                    adminCard.getCardNumber(),
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+            String adminMessage = String.format(
+                    "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
+                            "👤ID [%s] %s\n" +
+                            "🌐 %s: " + "%s\n" +
+                            "💸 Miqdor: %,d UZS\n" +
+                            "💸 Miqdor: %,d RUB\n" +
+                            "💳 Karta: `%s`\n" +
+                            "💳 Bizniki: `%s`\n" +
+                            "📅 [%s] ",
+                    request.getId(),
+                    request.getChatId(), number,  // chatId as label, phone as target
                     request.getPlatform(),
                     request.getPlatformUserId(),
                     request.getUniqueAmount(),
@@ -736,8 +753,7 @@ public class TopUpService {
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
 
-
-            adminLogBotService.sendLog(logMessage);
+            adminLogBotService.sendLog(adminMessage);
             messageSender.sendMessage(requestId, logMessage);
         }
 
@@ -852,7 +868,6 @@ public class TopUpService {
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
-                            "👤ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
@@ -860,7 +875,6 @@ public class TopUpService {
                             "🔐 Admin kartasi: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
-                    chatId, number,  // chatId as label, phone as target
                     request.getPlatform(),
                     request.getPlatformUserId(),
                     request.getUniqueAmount(),
@@ -870,8 +884,26 @@ public class TopUpService {
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
 
-
-            adminLogBotService.sendLog(logMessage);
+            String adminMessage = String.format(
+                    "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
+                            "👤ID [%s] %s\n" +
+                            "🌐 %s: " + "%s\n" +
+                            "💸 Miqdor: %,d UZS\n" +
+                            "💸 Miqdor: %,d RUB\n" +
+                            "💳 Karta: `%s`\n" +
+                            "💳 Bizniki: `%s`\n" +
+                            "📅 [%s] ",
+                    request.getId(),
+                    request.getChatId(), number,  // chatId as label, phone as target
+                    request.getPlatform(),
+                    request.getPlatformUserId(),
+                    request.getUniqueAmount(),
+                    rubAmount,
+                    request.getCardNumber(),
+                    adminCard.getCardNumber(),
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+            adminLogBotService.sendLog(adminMessage);
             messageSender.sendMessage(requestId, logMessage);
         }
 
