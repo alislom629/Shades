@@ -278,7 +278,7 @@ public class BonusService {
         BigDecimal balance = getReferralBalance(chatId);
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(String.format("💰 Pul to‘ldirish:\nBalans: %,d so‘m\nMinimal to‘ldirish summasi: 10,000 so‘m\nPlatformani tanlang:",
+        message.setText(String.format("💰 Pul to‘ldirish:\nBalans: %,d so‘m\nMinimal to‘ldirish summasi: 10,000 so‘m\nKontorani tanlang:",
                 balance.intValue()));
         message.setReplyMarkup(createTopUpPlatformKeyboard());
         messageSender.sendMessage(message, chatId);
@@ -329,7 +329,7 @@ public class BonusService {
         String fullName = sessionService.getUserData(chatId, "fullName");
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(String.format("Ma'lumotlarni tekshiring:\n\n 👤 Id Raqam: `%s` \n F.I.O: %s\nPlatforma: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\nTo‘ldirishni tasdiqlaysizmi?",
+        message.setText(String.format("Ma'lumotlarni tekshiring:\n\n 👤 Id Raqam: `%s` \n F.I.O: %s\nKontora: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\nTo‘ldirishni tasdiqlaysizmi?",
                 userId,
                 fullName, platform, userId, amount.intValue()));
         message.setReplyMarkup(createConfirmKeyboard());
@@ -664,7 +664,7 @@ public class BonusService {
 
                     adminLogBotService.sendToAdmins(message);
                 }else {
-                    String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n  🎟 Platformada qolgan limit: %,d %s \n\n 📅 [%s]",
+                    String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n  🎟 Kontoraada qolgan limit: %,d %s \n\n 📅 [%s]",
                             request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, cashdeskBalance.getLimit().longValue(),platformData.getCurrency().toString(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
@@ -682,14 +682,14 @@ public class BonusService {
                         : "Platform javob bermadi.";
                 logger.error("❌ Transfer failed for chatId {}: {}", request.getChatId(), error);
 //                messageSender.sendMessage(request.getChatId(), "❌ Platformga to‘lov yuborilmadi: " + error);
-                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + error + " (Foydalanuvchi: " + request.getChatId() + ")");
+                adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin kontorada xatolik yuz berdi: " + error + " (Foydalanuvchi: " + request.getChatId() + ")");
                 handleTransferFailure(chatId, request);
 
             }
         } catch (Exception e) {
             logger.error("❌ Error transferring top-up to platform for chatId {}: {}", request.getChatId(), e.getMessage());
             messageSender.sendMessage(request.getChatId(), "❌ To‘lov yuborishda xatolik yuz berdi. Qayta urinib ko‘ring.");
-            adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin platformada xatolik yuz berdi: " + e.getMessage() + " (Foydalanuvchi: " + request.getChatId() + ")");
+            adminLogBotService.sendToAdmins("So‘rov tasdiqlandi, lekin kontorada xatolik yuz berdi: " + e.getMessage() + " (Foydalanuvchi: " + request.getChatId() + ")");
         }
 
         sendMainMenu(request.getChatId());

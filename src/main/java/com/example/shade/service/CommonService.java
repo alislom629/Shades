@@ -35,7 +35,7 @@ public class CommonService {
     public void sendPlatformSelection(Long chatId, String prefix) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Platformani tanlang:");
+        message.setText("Kontorani tanlang:");
         message.setReplyMarkup(createPlatformKeyboard(prefix));
         messageSender.sendMessage(message, chatId);
     }

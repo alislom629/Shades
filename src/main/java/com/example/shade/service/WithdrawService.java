@@ -582,7 +582,7 @@ public class WithdrawService {
     private void sendPlatformSelection(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
-        message.setText("Platformani tanlang:");
+        message.setText("Kontorani tanlang:");
         InlineKeyboardMarkup keyboard = createPlatformKeyboard();
         message.setReplyMarkup(keyboard);
         messageSender.sendMessage(message, chatId);
@@ -636,7 +636,7 @@ public class WithdrawService {
     private void sendCodeInput(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
-        message.setText("Platformadan olingan pul yechib olish kodini kiriting:");
+        message.setText("Kontoradan olingan pul yechib olish kodini kiriting:");
         message.setReplyMarkup(createNavigationKeyboard());
         messageSender.sendMessage(message, chatId);
     }
@@ -667,7 +667,7 @@ public class WithdrawService {
 
         if ((uzsPlatforms == null || uzsPlatforms.isEmpty()) && (rubPlatforms == null || rubPlatforms.isEmpty())) {
             logger.error("No platforms found in database for keyboard creation");
-            messageSender.sendMessage(null, "❌ Xatolik: Platformalar topilmadi. Administrator bilan bog‘laning.");
+            messageSender.sendMessage(null, "❌ Xatolik: Kontoralar topilmadi. Administrator bilan bog‘laning.");
             rows.add(createNavigationButtons());
         } else {
             int maxRows = Math.max(uzsPlatforms.size(), rubPlatforms.size());
@@ -701,7 +701,7 @@ public class WithdrawService {
             }
             if (rows.isEmpty()) {
                 logger.error("No valid platforms with non-empty names found");
-                messageSender.sendMessage(null, "❌ Xatolik: Yaroqli platformalar topilmadi. Administrator bilan bog‘laning.");
+                messageSender.sendMessage(null, "❌ Xatolik: Yaroqli kontoralar topilmadi. Administrator bilan bog‘laning.");
                 rows.add(createNavigationButtons());
             } else {
                 rows.add(createNavigationButtons());

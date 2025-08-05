@@ -486,7 +486,7 @@ public class TopUpService {
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Platformada qolgan limit: %,d %s\n\n" +
+                                "🎟 Kontorada qolgan limit: %,d %s\n\n" +
                                 "📅 [%s]",
                         request.getId(),
                         chatId,
@@ -688,7 +688,7 @@ public class TopUpService {
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Platformada qolgan limit: %,d %s\n\n" +
+                                "🎟 Kontorada qolgan limit: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
                         request.getChatId(), number,  // 🟢 Show chatId, link to phone number
@@ -822,7 +822,7 @@ public class TopUpService {
                                 "💳 Karta raqami: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Platformada qolgan limit: %,d %s\n\n" +
+                                "🎟 Kontorada qolgan limit: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
                         request.getChatId(), number,  // 🟢 Show chatId, link to phone number
@@ -1075,7 +1075,7 @@ public class TopUpService {
     private void sendPlatformSelection(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Platformani tanlang:");
+        message.setText("Kontorani tanlang:");
         message.setReplyMarkup(createPlatformKeyboard());
         messageSender.sendMessage(message, chatId);
     }
