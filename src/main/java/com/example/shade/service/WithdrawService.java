@@ -190,27 +190,39 @@ public class WithdrawService {
             String logMessage = String.format(
                     "\uD83C\uDD94: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "👤 [%s] %s\n" +
-                            "🌐 %s: " + "%s\n"+
+                            "🌐 %s: %s\n" +
                             "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
-                            "💵 Tushgan: %,s\n" +
+                            "💵 Tushgan: %,d\n" +
                             "📅 [%s]",
-                    request.getId() ,
-                    chatId,number, platform, userId,
-                    cardNumber, code,request.getUniqueAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    request.getId(),
+                    chatId, number,
+                    platform, userId,
+                    cardNumber, code,
+                    request.getUniqueAmount(), // ✅ assumed to be numeric (int or long)
+                    LocalDateTime.now(ZoneId.of("GMT+5"))
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
             adminLogBotService.sendLog(logMessage);
+
             String message = String.format(
                     "\uD83C\uDD94: %s Pul yechib olish tasdiqlandi ✅\n" +
-                            "🌐 %s: " + "%s\n"+
+                            "🌐 %s: %s\n" +
                             "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
-                            "💵 Tushgan: %,s\n" +
+                            "💵 Tushgan: %,d\n" +
                             "📅 [%s]",
                     request.getId(),
                     platform, userId,
-                    cardNumber, code, request.getUniqueAmount(),LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    cardNumber, code,
+                    request.getUniqueAmount(), // ✅ same here
+                    LocalDateTime.now(ZoneId.of("GMT+5"))
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+
             messageSender.sendMessage(chatId, "✅Pul yechib olish tasdiqlandi \n" + message);
             sendMainMenu(chatId);
+
         } else {
             request.setStatus(RequestStatus.CANCELED);
             requestRepository.save(request);
