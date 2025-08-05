@@ -536,11 +536,11 @@ public class WithdrawService {
                             "🌐 *#%s:* `%s`\n" +
                             "💳 *Karta:* `%s`\n" +
                             "🔑 *Kod:* `%s`\n" +
-                            "💵 *Berish:* `%,s`\n" +
+                            "💵 *Berish:* `%s`\n" +
                             "📅 *%s*",
                     request.getId(),
-                     chatId.toString(),        // 👈 number as link text, ID as link target
-                    escapeMarkdown(number),                           // 👈 number shown again plainly
+                    chatId.toString(),        // 👈 number as link text, ID as link target
+                    escapeMarkdown(number),   // 👈 number shown again plainly
                     escapeMarkdown(platform),
                     escapeMarkdown(request.getPlatformUserId()),
                     escapeMarkdown(escapedCardNumber),
