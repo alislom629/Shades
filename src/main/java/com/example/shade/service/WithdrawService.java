@@ -534,7 +534,7 @@ public class WithdrawService {
                             "\uD83C\uDD94: `%d`\n" +
                             "👤 *User:* [%s]\n" +
                             "📞: `%s`\n" +
-                            "*#%s:* `%s`\n" +
+                            "🌐 *#%s:* `%s`\n" +
                             "💳 *Karta raqami:* `%s`\n" +
                             "🔑 *Kod:* `%s`\n" +
                             "💵 *Berish:* `%s`\n" +

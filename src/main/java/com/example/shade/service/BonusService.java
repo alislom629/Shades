@@ -50,7 +50,7 @@ public class BonusService {
     private static final BigDecimal MINIMUM_TOPUP = new BigDecimal("10000");
     private static final BigDecimal MAXIMUM_TOPUP = new BigDecimal("10000000");
     private static final long MINIMUM_TICKETS = 36L;
-    private static final long MAXIMUM_TICKETS = 100L;
+    private static final long MAXIMUM_TICKETS = 400L;
 
     public void startBonus(Long chatId) {
         logger.info("Starting bonus section for chatId: {}", chatId);
