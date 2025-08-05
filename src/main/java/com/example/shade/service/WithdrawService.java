@@ -188,12 +188,12 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "Pul \n\n 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
-                            "👤 User ID [%s] %s\n" +
+                    "\uD83C\uDD94: %s Pul yechib olish tasdiqlandi ✅\n" +
+                            "👤 [%s] %s\n" +
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
-                            "💵 Foydalanuvchiga tushgan: %s\n" +
+                            "💵 Tushgan: %,s\n" +
                             "📅 [%s]",
                     request.getId() ,
                     chatId,number, platform, userId,
@@ -204,7 +204,7 @@ public class WithdrawService {
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
-                            "💵 Foydalanuvchiga tushgan: %s\n" +
+                            "💵 Tushgan: %,s\n" +
                             "📅 [%s]",
                     request.getId(),
                     platform, userId,
