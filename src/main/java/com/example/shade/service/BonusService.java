@@ -715,7 +715,7 @@ public class BonusService {
                         "💳 Karta raqami: `%s`\n" +
                         "📅 [%s] ",
                 request.getId(),
-                chatId,number, request.getPlatform(), request.getPlatformUserId(),
+                request.getChatId(),number, request.getPlatform(), request.getPlatformUserId(),
                 request.getUniqueAmount(), rubAmount, request.getCardNumber(),
                 LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                );
@@ -729,7 +729,7 @@ public class BonusService {
         markup.setKeyboard(rows);
 
         adminLogBotService.sendToAdmins(errorLogMessage, markup);
-        messageSender.sendMessage(chatId, "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
+        messageSender.sendMessage(request.getChatId(), "❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
     }
 
     public void handleAdminDeclineTransfer(Long chatId, Long requestId) {

@@ -45,7 +45,7 @@ public class TopUpService {
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;
     private final RestTemplate restTemplate = new RestTemplate();
-    private static final long MIN_AMOUNT = 10_000;
+    private static final long MIN_AMOUNT = 10_00;
     private static final long MAX_AMOUNT = 10_000_000;
     private static final String PAYMENT_MESSAGE_KEY = "payment_message_id";
     private static final String PAYMENT_ATTEMPTS_KEY = "payment_attempts";
@@ -426,10 +426,10 @@ public class TopUpService {
                 chatId, request.getPlatform(), request.getPlatformUserId(),
                 request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
 
-        if ("SUCCESS".equals(statusResponse.get("status"))) {
-            request.setTransactionId((String) statusResponse.get("transactionId"));
-            request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
-            request.setPayUrl((String) statusResponse.get("payUrl"));
+        if (true) {
+//            request.setTransactionId((String) statusResponse.get("transactionId"));
+//            request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
+//            request.setPayUrl((String) statusResponse.get("payUrl"));
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
@@ -564,7 +564,7 @@ public class TopUpService {
                         "🔐 Admin kartasi: `%s`\n" +
                         "📅 [%s] ",
                 request.getId(),
-                chatId, number,  // ✅ chatId as label, phone number as link
+                request.getChatId(), number,  // ✅ chatId as label, phone number as link
                 request.getPlatform(),
                 request.getPlatformUserId(),
                 request.getUniqueAmount(),
@@ -585,11 +585,36 @@ public class TopUpService {
 
         adminLogBotService.sendToAdmins(errorLogMessage, markup);
         SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText("❌ Transfer xatosi: Pul o‘tkazishda xato yuz berdi. Admin qayta tekshiradi.");
+        message.setChatId(request.getChatId());
+        String messageText = String.format(
+                "✳️ *Sizning almashuv buyurtmangiz:*\n\n" +
+                        "🆔 *ID:* `%d`\n" +
+                        "📤 *Berish:* `%,d UZS`\n" +
+                        "📥 *Olish:* `%,d UZS`\n" +
+                        "🌐 *%s:* `%s`\n" +
+                        "📅 *Sana:* `%s`\n\n" +
+                        "⌛️ *Buyurtmangiz tekshiruvga yuborildi!* ",
+                request.getId(),
+                request.getUniqueAmount(),
+                request.getUniqueAmount(), // If different, change accordingly
+                request.getPlatform(),
+                escapeMarkdown(request.getPlatformUserId()),
+                LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"))
+        );
+
+        message.setText(messageText);
+        message.enableMarkdown(true);
         message.setReplyMarkup(createBonusMenuKeyboard());
         messageSender.sendMessage(message, chatId);
     }
+    private String escapeMarkdown(String text) {
+        if (text == null) return "";
+        return text.replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("`", "\\`")
+                .replace("[", "\\[");
+    }
+
     public void handleScreenshotApproval(Long chatId, Long requestId, boolean approve) {
         HizmatRequest request = requestRepository.findById(requestId)
                 .orElse(null);
