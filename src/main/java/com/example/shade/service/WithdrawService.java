@@ -532,7 +532,7 @@ public class WithdrawService {
             String logMessage = String.format(
                     "*#Pul yechib olish so‘rovi qabul qilindi \uD83D\uDCB8*\n\n" +
                             "\uD83C\uDD94: `%d`\n" +
-                            "👤 *User:* [%s](tg://user?id=%s)\n" +
+                            "👤 *User:* [%s]\n" +
                             "📞: `%s`\n" +
                             "*#%s:* `%s`\n" +
                             "💳 *Karta raqami:* `%s`\n" +
