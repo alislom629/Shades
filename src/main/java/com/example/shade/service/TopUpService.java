@@ -45,7 +45,7 @@ public class TopUpService {
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;
     private final RestTemplate restTemplate = new RestTemplate();
-    private static final long MIN_AMOUNT = 10_00;
+    private static final long MIN_AMOUNT = 10_000;
     private static final long MAX_AMOUNT = 10_000_000;
     private static final String PAYMENT_MESSAGE_KEY = "payment_message_id";
     private static final String PAYMENT_ATTEMPTS_KEY = "payment_attempts";
@@ -426,10 +426,10 @@ public class TopUpService {
                 chatId, request.getPlatform(), request.getPlatformUserId(),
                 request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
 
-        if (true) {
-//            request.setTransactionId((String) statusResponse.get("transactionId"));
-//            request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
-//            request.setPayUrl((String) statusResponse.get("payUrl"));
+        if ("SUCCESS".equals(statusResponse.get("status"))) {
+            request.setTransactionId((String) statusResponse.get("transactionId"));
+            request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
+            request.setPayUrl((String) statusResponse.get("payUrl"));
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 

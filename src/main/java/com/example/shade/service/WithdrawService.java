@@ -530,22 +530,28 @@ public class WithdrawService {
                     .replace("-", "\\-");
 
             String logMessage = String.format(
-                    "*#Pul yechib olish so‘rovi qabul qilindi \uD83D\uDCB8*\n\n " +
-                            "\uD83C\uDD94: `%d`  \n" +
-                            "👤 *User ID:* `%s`\n" +
-                            "\uD83D\uDCDE: [%s]\n" +
-                            "*#`%s`*:`%s`\n" +
+                    "*#Pul yechib olish so‘rovi qabul qilindi \uD83D\uDCB8*\n\n" +
+                            "\uD83C\uDD94: `%d`\n" +
+                            "👤 *User:* [%s](tg://user?id=%s)\n" +
+                            "📞: `%s`\n" +
+                            "*#%s:* `%s`\n" +
                             "💳 *Karta raqami:* `%s`\n" +
                             "🔑 *Kod:* `%s`\n" +
                             "💵 *Berish:* `%s`\n" +
                             "📅 *%s*",
                     request.getId(),
-                   chatId.toString(), number,  platform, request.getPlatformUserId(),
-                    escapedCardNumber,
-                    code,
+                    escapeMarkdown(number), chatId.toString(),        // 👈 number as link text, ID as link target
+                    escapeMarkdown(number),                           // 👈 number shown again plainly
+                    escapeMarkdown(platform),
+                    escapeMarkdown(request.getPlatformUserId()),
+                    escapeMarkdown(escapedCardNumber),
+                    escapeMarkdown(code),
                     netAmount.toPlainString(),
                     LocalDateTime.now(ZoneId.of("GMT+5"))
-                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+
+
 
             request.setUniqueAmount( netAmount.longValue());
             requestRepository.save(request);
@@ -564,6 +570,15 @@ public class WithdrawService {
 
 
     }
+    private String escapeMarkdown(String text) {
+        if (text == null) return "";
+        return text.replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+                .replace("]", "\\]");
+    }
+
 
     private void sendPlatformSelection(Long chatId) {
         SendMessage message = new SendMessage();
