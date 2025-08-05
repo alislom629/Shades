@@ -200,17 +200,16 @@ public class WithdrawService {
                     cardNumber, code,request.getUniqueAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
             String message = String.format(
-                    "📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
-                            "👤 User ID [%s] \n" +
+                    "\uD83C\uDD94: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "🌐 %s: " + "%s\n"+
                             "💳 Karta raqami: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "💵 Foydalanuvchiga tushgan: %s\n" +
                             "📅 [%s]",
                     request.getId(),
-                    chatId, platform, userId,
+                    platform, userId,
                     cardNumber, code, request.getUniqueAmount(),LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            messageSender.sendMessage(chatId, "✅ So‘rovingiz tasdiqlandi! \n" + message);
+            messageSender.sendMessage(chatId, "✅Pul yechib olish tasdiqlandi \n" + message);
             sendMainMenu(chatId);
         } else {
             request.setStatus(RequestStatus.CANCELED);
