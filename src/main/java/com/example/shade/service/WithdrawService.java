@@ -191,7 +191,7 @@ public class WithdrawService {
                     "Pul \n\n 📋 Tranzaksiya ID: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "👤 User ID [%s] %s\n" +
                             "🌐 %s: " + "%s\n"+
-                            "💳 Karta raqami: `%s`\n" +
+                            "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "💵 Foydalanuvchiga tushgan: %s\n" +
                             "📅 [%s]",
@@ -202,7 +202,7 @@ public class WithdrawService {
             String message = String.format(
                     "\uD83C\uDD94: %s Pul yechib olish tasdiqlandi ✅\n" +
                             "🌐 %s: " + "%s\n"+
-                            "💳 Karta raqami: `%s`\n" +
+                            "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "💵 Foydalanuvchiga tushgan: %s\n" +
                             "📅 [%s]",
@@ -219,7 +219,7 @@ public class WithdrawService {
                     "Pul \n\n 📋 So'rov ID: %s  Pul yechib olish rad etildi ❌\n" +
                             "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                             "🌐 %s: " + "%s\n"+
-                            "💳 Karta raqami: `%s`\n" +
+                            "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "📅 [%s]",
                     request.getId(),chatId,number,
@@ -531,10 +531,10 @@ public class WithdrawService {
             String logMessage = String.format(
                     "*#Pul yechib olish so‘rovi qabul qilindi \uD83D\uDCB8*\n\n" +
                             "\uD83C\uDD94: `%d`\n" +
-                            "👤 *User:* [%s]\n" +
+                            "👤: [%s]\n" +
                             "📞: `%s`\n" +
                             "🌐 *#%s:* `%s`\n" +
-                            "💳 *Karta raqami:* `%s`\n" +
+                            "💳 *Karta:* `%s`\n" +
                             "🔑 *Kod:* `%s`\n" +
                             "💵 *Berish:* `%s`\n" +
                             "📅 *%s*",

@@ -66,7 +66,7 @@ public class AdminLogBotService {
                         "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
-                        "💳 Karta raqami: `%s`\n" +
+                        "💳 Karta: `%s`\n" +
                         "🔐 Admin kartasi: `%s`\n" +
                         "📅 [%s]",
                 request.getId(),

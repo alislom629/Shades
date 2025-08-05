@@ -462,7 +462,7 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: `%s`\n" +
+                                "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s]",
@@ -479,14 +479,14 @@ public class TopUpService {
 
                 String logMessageAdmin = String.format(
                         "🆔: %d  To‘lov yakunlandi ✅\n" +
-                                "👤User ID [%s] %s\n" +  // Clickable number with + sign
+                                "👤: [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: `%s`\n" +
-                                "🔐 Admin kartasi: `%s`\n" +
+                                "💳 Karta: `%s`\n" +
+                                "\uD83D\uDCB3 Bizniki: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Kontorada qolgan limit: %,d %s\n\n" +
+                                "\uD83C\uDFE6: %,d %s\n\n" +
                                 "📅 [%s]",
                         request.getId(),
                         chatId,
@@ -557,7 +557,7 @@ public class TopUpService {
                         "🌐 %s: " + "%s\n" +
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
-                        "💳 Karta raqami: `%s`\n" +
+                        "💳 Karta: `%s`\n" +
                         "🔐 Admin kartasi: `%s`\n" +
                         "📅 [%s] ",
                 request.getId(),
@@ -664,7 +664,7 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: `%s`\n" +
+                                "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s] ",
@@ -685,7 +685,7 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: `%s`\n" +
+                                "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "🎟 Kontorada qolgan limit: %,d %s\n\n" +
@@ -722,7 +722,7 @@ public class TopUpService {
                             "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
-                            "💳 Karta raqami: `%s`\n" +
+                            "💳 Karta: `%s`\n" +
                             "🔐 Admin kartasi: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
@@ -798,7 +798,7 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: `%s`\n" +
+                                "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s] ",
@@ -819,7 +819,7 @@ public class TopUpService {
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
-                                "💳 Karta raqami: `%s`\n" +
+                                "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "🎟 Kontorada qolgan limit: %,d %s\n\n" +
@@ -856,7 +856,7 @@ public class TopUpService {
                             "🌐 %s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
-                            "💳 Karta raqami: `%s`\n" +
+                            "💳 Karta: `%s`\n" +
                             "🔐 Admin kartasi: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
