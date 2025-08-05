@@ -541,7 +541,7 @@ public class WithdrawService {
                     .replace("-", "\\-");
 
             String logMessage = String.format(
-                    "*#Pul yechib olish so‘rovi qabul qilindi \uD83D\uDCB8*\n\n" +
+                    "*#Pul yechish so'rovi \uD83D\uDCB8*\n\n" +
                             "\uD83C\uDD94: `%d`\n" +
                             "👤: [%s]\n" +
                             "📞: `%s`\n" +
