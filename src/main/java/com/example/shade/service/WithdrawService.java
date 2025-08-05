@@ -540,7 +540,7 @@ public class WithdrawService {
                             "💵 *Berish:* `%s`\n" +
                             "📅 *%s*",
                     request.getId(),
-                    escapeMarkdown(number), chatId.toString(),        // 👈 number as link text, ID as link target
+                     chatId.toString(),        // 👈 number as link text, ID as link target
                     escapeMarkdown(number),                           // 👈 number shown again plainly
                     escapeMarkdown(platform),
                     escapeMarkdown(request.getPlatformUserId()),

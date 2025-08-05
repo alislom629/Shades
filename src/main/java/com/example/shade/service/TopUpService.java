@@ -444,7 +444,7 @@ public class TopUpService {
                 UserBalance balance = userBalanceRepository.findById(chatId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
-                                    .chatId(chatId)
+                                    .chatId(request.getChatId())
                                     .tickets(0L)
                                     .balance(BigDecimal.ZERO)
                                     .build();
@@ -647,7 +647,7 @@ public class TopUpService {
                 UserBalance balance = userBalanceRepository.findById(requestId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
-                                    .chatId(requestId)
+                                    .chatId(request.getChatId())
                                     .tickets(0L)
                                     .balance(BigDecimal.ZERO)
                                     .build();
@@ -781,7 +781,7 @@ public class TopUpService {
                 UserBalance balance = userBalanceRepository.findById(requestId)
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
-                                    .chatId(requestId)
+                                    .chatId(request.getChatId())
                                     .tickets(0L)
                                     .balance(BigDecimal.ZERO)
                                     .build();
