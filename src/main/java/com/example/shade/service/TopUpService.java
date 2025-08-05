@@ -459,7 +459,6 @@ public class TopUpService {
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         "🆔: %d  To‘lov yakunlandi ✅\n" +
-                                "👤User ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
@@ -468,8 +467,6 @@ public class TopUpService {
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s]",
                         request.getId(),
-                        chatId,
-                        number,
                         request.getPlatform(),
                         request.getPlatformUserId(),
                         request.getUniqueAmount(),
@@ -683,7 +680,7 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
-                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                        " 🆔: %d To‘lov amalga oshirildi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
@@ -817,7 +814,7 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
-                        " 🆔: %d To‘lov amalga oshirildi ✅\n" +
+                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
