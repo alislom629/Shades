@@ -206,7 +206,7 @@ public class WithdrawService {
             adminLogBotService.sendLog(logMessage);
 
             String message = String.format(
-                    "\uD83C\uDD94: %s Pul yechib olish tasdiqlandi ✅\n" +
+                    "\uD83C\uDD94: %s \n" +
                             "🌐 %s: %s\n" +
                             "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
