@@ -61,13 +61,13 @@ public class AdminLogBotService {
         String number = blockedUserRepository.findByChatId(userChatId).get().getPhoneNumber();
 
         String logMessage = String.format(
-                "📋 Hizmat requestId: %d To‘lov skrinshoti keldi 📷\n" +
+                "\uD83C\uDD94: %d To‘lov skrinshoti keldi 📷\n" +
                         "👤 User ID [%s] %s\n" +
                         "🌐 %s: " + "%s\n"+
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta: `%s`\n" +
-                        "🔐 Admin kartasi: `%s`\n" +
+                        "\uD83D\uDCB3 Bizniki: `%s`\n" +
                         "📅 [%s]",
                 request.getId(),
                 userChatId, number,  request.getPlatform(), request.getPlatformUserId(),
