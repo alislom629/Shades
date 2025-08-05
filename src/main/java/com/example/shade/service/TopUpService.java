@@ -817,7 +817,7 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
-                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                        " 🆔: %d To‘lov amalga oshirildi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
                                 "🌐 %s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
