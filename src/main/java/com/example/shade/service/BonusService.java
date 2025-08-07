@@ -249,7 +249,7 @@ public class BonusService {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(String.format("🤝 Referal bo‘limi:\nReferal foydalanuvchilar: %d ta\nBalans: %,d so‘m\nTanlang:",
-                referralCount, balance.intValue()));
+                referralCount, balance.longValue()));
         message.setReplyMarkup(createReferralKeyboard());
         messageSender.sendMessage(message, chatId);
     }
@@ -279,7 +279,7 @@ public class BonusService {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(String.format("💰 Pul to‘ldirish:\nBalans: %,d so‘m\nMinimal to‘ldirish summasi: 10,000 so‘m\nKontorani tanlang:",
-                balance.intValue()));
+                balance.longValue()));
         message.setReplyMarkup(createTopUpPlatformKeyboard());
         messageSender.sendMessage(message, chatId);
     }
@@ -331,7 +331,7 @@ public class BonusService {
         message.setChatId(chatId);
         message.setText(String.format("Ma'lumotlarni tekshiring:\n\n 👤 Id Raqam: `%s` \n F.I.O: %s\nKontora: %s\n🆔 ID: %s\n💰 Summa: %,d so‘m\n\nTo‘ldirishni tasdiqlaysizmi?",
                 userId,
-                fullName, platform, userId, amount.intValue()));
+                fullName, platform, userId, amount.longValue()));
         message.setReplyMarkup(createConfirmKeyboard());
         messageSender.sendMessage(message, chatId);
     }
@@ -493,7 +493,6 @@ public class BonusService {
             sendTopUpInput(chatId, platform);
             return;
         }
-
         HizmatRequest request = requestRepository.findTopByChatIdAndPlatformAndPlatformUserIdAndStatusOrderByCreatedAtDesc(
                 chatId, platform, userId, RequestStatus.PENDING).orElse(null);
         if (request == null) {
@@ -502,7 +501,8 @@ public class BonusService {
             sendMainMenu(chatId);
             return;
         }
-
+        balance.setBalance(balance.getBalance().subtract(new BigDecimal(amount.longValue())));
+        userBalanceRepository.save(balance);
         request.setAmount(amount.longValue());
         request.setUniqueAmount(amount.longValue());
         request.setStatus(RequestStatus.PENDING_ADMIN);
@@ -614,7 +614,6 @@ public class BonusService {
         String finalSignature = sha256Hex(sha256Part + md5Part);
 
         String apiUrl = String.format("https://partners.servcul.com/CashdeskBotAPI/Deposit/%s/Add", userId);
-
         HttpHeaders headers = new HttpHeaders();
         headers.set("sign", finalSignature);
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -642,10 +641,6 @@ public class BonusService {
                 messageSender.animateAndDeleteMessages(request.getChatId(), sessionService.getMessageIds(request.getChatId()), "OPEN");
                 sessionService.clearMessageIds(request.getChatId());
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
-                UserBalance balance = userBalanceRepository.findById(request.getChatId())
-                        .orElse(UserBalance.builder().chatId(request.getChatId()).tickets(0L).balance(BigDecimal.ZERO).build());
-                balance.setBalance(balance.getBalance().subtract(new BigDecimal(request.getUniqueAmount())));
-                userBalanceRepository.save(balance);
 
                 long tickets = request.getAmount() / 30_000;
                 if (tickets > 0) {
@@ -834,9 +829,9 @@ public class BonusService {
 
             StringBuilder winningsLog = new StringBuilder("🎉 Lotereya natijalari:\n");
             ticketWinnings.forEach((ticketNumber, amount) ->
-                    winningsLog.append(String.format("%,d so‘m\n",amount.intValue())));
+                    winningsLog.append(String.format("%,d so‘m\n",amount.longValue())));
             winningsLog.append(String.format("Jami yutuq: %,d so‘m\nYangi balans: %,d so‘m",
-                    totalWinnings.intValue(), balance.getBalance().longValue()));
+                    totalWinnings.longValue(), balance.getBalance().longValue()));
 
             messageSender.sendMessage(chatId, winningsLog.toString());
             String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
@@ -848,7 +843,7 @@ public class BonusService {
                             "💰 Jami yutuq: %s so‘m\n" +
                             "💸 Yangi balans: %s so‘m\n"+
                             "📅 [%s]",
-                    chatId,number, numberOfPlays, totalWinnings.intValue(), balance.getBalance().longValue(),  LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    chatId,number, numberOfPlays, totalWinnings.longValue(), balance.getBalance().longValue(),  LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(adminLog);
 
             sendLotteryMenu(chatId);

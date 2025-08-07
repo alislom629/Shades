@@ -264,7 +264,7 @@ public class LotteryService {
                             "Siz tasodifiy tanlov orqali %s so‘m bonus yutib oldingiz. Bonus botdagi balansingizga qo‘shildi.\n\n" +
                             "💸 Yangi balans: %s so‘m\n" +
                             "📅 [%s]",
-                    amount, balance.getBalance().intValue(),
+                    amount, balance.getBalance().longValue(),
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
 
@@ -277,7 +277,7 @@ public class LotteryService {
 
             adminLogBotService.sendToAdmins("#Кунлик бонусда голиб болганлар\n\n" +
                     "Kunlik bonus: " +amount+" \n"+
-                    "Balans: " +balance.getBalance().intValue() + "\n" +
+                    "Balans: " +balance.getBalance().longValue() + "\n" +
                     "User ID: " +chatId + "\n" +
                     "Telefon nomer:" +number+ "\n\n" +
                     "\uD83D\uDCC5 "+LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
