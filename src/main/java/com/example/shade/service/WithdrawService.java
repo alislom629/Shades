@@ -752,7 +752,7 @@ public class WithdrawService {
                     .filter(Objects::nonNull)
                     .distinct()
                     .limit(2)
-                    .map(card -> createButton("Karta: " + maskCard(card), "WITHDRAW_PAST_CARD:" + card))
+                    .map(card -> createButton( card, "WITHDRAW_PAST_CARD:" + card))
                     .collect(Collectors.toList());
             if (!pastCardButtons.isEmpty()) {
                 rows.add(pastCardButtons);

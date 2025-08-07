@@ -85,12 +85,12 @@ public class TopUpService {
 
     public void handleCallback(Long chatId, String callback) {
         logger.info("Callback received for chatId {}: {}", chatId, callback);
-        if (callback.equals("TOPUP_PAYMENT_CONFIRM")){
+        if (callback.equals("TOPUP_PAYMENT_CONFIRM")) {
             List<Integer> messageIds = sessionService.getMessageIds(chatId);
             if (!messageIds.isEmpty()) {
                 messageSender.editMessageToRemoveButtons(chatId, messageIds.get(messageIds.size() - 1));
             }
-        }else {
+        } else {
             messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
         }
         sessionService.clearMessageIds(chatId);
@@ -151,6 +151,7 @@ public class TopUpService {
             }
         }
     }
+
     private InlineKeyboardMarkup createBonusMenuKeyboard() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -158,6 +159,7 @@ public class TopUpService {
         markup.setKeyboard(rows);
         return markup;
     }
+
     public void handleBack(Long chatId) {
         String lastState = sessionService.popNavigationState(chatId);
         logger.info("Handling back for chatId {}, lastState: {}", chatId, lastState);
@@ -401,7 +403,7 @@ public class TopUpService {
         sendPaymentInstruction(chatId);
     }
 
-    private void verifyPayment(Long chatId) {
+    private void verifyPayment(Long chatId)  {
         HizmatRequest request = requestRepository.findByChatIdAndStatus(chatId, RequestStatus.PENDING_PAYMENT)
                 .orElse(null);
         if (request == null) {
@@ -421,10 +423,57 @@ public class TopUpService {
 
         AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
                 .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
+        Map<String, Object> statusResponse=null;
+        ExchangeRate latest = exchangeRateRepository.findLatest()
+                .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
+        long rubAmount =
+                BigDecimal.valueOf(request.getUniqueAmount())
+                        .multiply(latest.getUzsToRub())
+                        .longValue() / 1000;
+        try {
+            statusResponse= osonService.verifyPaymentByAmountAndCard(
+                    chatId, request.getPlatform(), request.getPlatformUserId(),
+                    request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
+        } catch (Exception e) {
+            request.setStatus(RequestStatus.PENDING_SCREENSHOT);
+            requestRepository.save(request);
+            SendMessage message = new SendMessage();
+            message.setChatId(chatId);
+            message.setText("To‘lov hali qabul qilinmadi. Iltimos, to‘lov chekining skrinshotini yuboring.");
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
 
-        Map<String, Object> statusResponse = osonService.verifyPaymentByAmountAndCard(
-                chatId, request.getPlatform(), request.getPlatformUserId(),
-                request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            rows.add(createNavigationButtons());
+            markup.setKeyboard(rows);
+            message.setReplyMarkup(markup);
+            messageSender.sendMessage(message, chatId);
+
+            sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
+
+            String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
+            String logMessage = String.format(
+                    "🆔: %d  \n" +
+                            "👤: [%s] %s\n" +  // Clickable number with + sign
+                            "🌐 %s: " + "%s\n" +
+                            "💸 Miqdor: %,d UZS\n" +
+                            "💸 Miqdor: %,d RUB\n" +
+                            "💳 Karta: `%s`\n" +
+                            "🔐 Admin kartasi: `%s`\n" +
+                            "📅 [%s]",
+                    request.getId(),
+                    chatId,
+                    number,
+                    request.getPlatform(),
+                    request.getPlatformUserId(),
+                    request.getUniqueAmount(),
+                    rubAmount,
+                    request.getCardNumber(),
+                    adminCard.getCardNumber(),
+                    LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+            adminLogBotService.sendLog("Osonda Xatolik Yuz berdi ⚠\uFE0F \n\n"+logMessage);
+        }
+
 
         if ("SUCCESS".equals(statusResponse.get("status"))) {
             request.setTransactionId((String) statusResponse.get("transactionId"));
@@ -434,12 +483,7 @@ public class TopUpService {
             requestRepository.save(request);
 
             BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
-            ExchangeRate latest = exchangeRateRepository.findLatest()
-                    .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-            long rubAmount =
-                    BigDecimal.valueOf(request.getUniqueAmount())
-                            .multiply(latest.getUzsToRub())
-                            .longValue() / 1000;
+
             if (transferSuccessful != null) {
                 UserBalance balance = userBalanceRepository.findById(chatId)
                         .orElseGet(() -> {
@@ -604,6 +648,7 @@ public class TopUpService {
         message.setReplyMarkup(createBonusMenuKeyboard());
         messageSender.sendMessage(message, chatId);
     }
+
     private String escapeMarkdown(String text) {
         if (text == null) return "";
         return text.replace("_", "\\_")
@@ -763,7 +808,7 @@ public class TopUpService {
     }
 
     public void handleScreenshotApprovalChat(Long chatId, Long requestId, boolean approve) {
-        HizmatRequest request = requestRepository.findByChatIdAndStatus(requestId,RequestStatus.PENDING_SCREENSHOT)
+        HizmatRequest request = requestRepository.findByChatIdAndStatus(requestId, RequestStatus.PENDING_SCREENSHOT)
                 .orElse(null);
         if (request == null) {
             logger.error("No request found for ID {}", requestId);
@@ -1062,7 +1107,7 @@ public class TopUpService {
                             "⌛️ Agar to‘lov darhol amalga oshmasa, kuting va yana tugmani bosing.\n" +
                             "`TG_ID: %d #%d`",
                     request.getUniqueAmount(),
-                    request.getAmount(), request.getUniqueAmount(),escapedCardNumber,
+                    request.getAmount(), request.getUniqueAmount(), escapedCardNumber,
                     latest.getUzsToRub(), amount,
                     attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
         } else {
@@ -1076,7 +1121,7 @@ public class TopUpService {
                             "⌛️ Agar to‘lov darhol amalga oshmasa, kuting va yana tugmani bosing.\n" +
                             "`TG_ID: %d #%d`",
                     request.getUniqueAmount(),
-                    request.getAmount(), request.getUniqueAmount(),escapedCardNumber,
+                    request.getAmount(), request.getUniqueAmount(), escapedCardNumber,
                     attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
         }
 
@@ -1247,7 +1292,7 @@ public class TopUpService {
                     .collect(Collectors.toList());
 
             for (String card : distinctCards) {
-                InlineKeyboardButton button = createButton(maskCard(card), "TOPUP_PAST_CARD:" + card);
+                InlineKeyboardButton button = createButton(card, "TOPUP_PAST_CARD:" + card);
                 rows.add(Collections.singletonList(button));
             }
         }

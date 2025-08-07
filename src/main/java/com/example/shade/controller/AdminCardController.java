@@ -103,7 +103,7 @@ public class AdminCardController {
                 .map(osonConfig -> {
                     card.setCardNumber(card.getCardNumber().replaceAll("\\s+", ""));
                     card.setOsonConfig(osonConfig);
-                    logger.info("Adding new admin card for OsonConfig ID: {}: {}", osonConfigId, maskCard(card.getCardNumber()));
+                    logger.info("Adding new admin card for OsonConfig ID: {}: {}", osonConfigId, card.getCardNumber());
                     AdminCard savedCard = adminCardRepository.save(card);
                     return ResponseEntity.ok(savedCard);
                 })
@@ -133,7 +133,7 @@ public class AdminCardController {
                         osonConfigRepository.findById(card.getOsonConfig().getId())
                                 .ifPresent(existing::setOsonConfig);
                     }
-                    logger.info("Updating card ID: {}, new card number: {}", id, maskCard(card.getCardNumber()));
+                    logger.info("Updating card ID: {}, new card number: {}", id, card.getCardNumber());
                     return ResponseEntity.ok(adminCardRepository.save(existing));
                 })
                 .orElseGet(() -> {

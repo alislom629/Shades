@@ -94,7 +94,7 @@ public class CommonService {
         if (!recentRequests.isEmpty() && recentRequests.get(0).getCardNumber() != null) {
             HizmatRequest latestRequest = recentRequests.get(0);
             sessionService.setUserData(chatId, "cardNumber", latestRequest.getCardNumber());
-            message.setText("F.I.O: " + fullName + "\nSo‘nggi karta: " + maskCard(latestRequest.getCardNumber()) + "\nShu kartani ishlatasizmi yoki yangi karta raqamini kiriting:");
+            message.setText("F.I.O: " + fullName + "\nSo‘nggi karta: " + latestRequest.getCardNumber() + "\nShu kartani ishlatasizmi yoki yangi karta raqamini kiriting:");
             message.setReplyMarkup(createSavedCardKeyboard(recentRequests, prefix));
         } else {
             message.setText("F.I.O: " + fullName + "\nKarta raqamini kiriting (8600xxxxxxxxxxxx):");
@@ -195,7 +195,7 @@ public class CommonService {
                     .filter(java.util.Objects::nonNull)
                     .distinct()
                     .limit(2)
-                    .map(card -> createButton("Karta: " + maskCard(card), prefix + "_PAST_CARD:" + card))
+                    .map(card -> createButton( card, prefix + "_PAST_CARD:" + card))
                     .collect(Collectors.toList());
             if (!pastCardButtons.isEmpty()) {
                 rows.add(pastCardButtons);
