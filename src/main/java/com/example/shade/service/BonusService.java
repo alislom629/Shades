@@ -634,7 +634,7 @@ public class BonusService {
             if (successObj == null && responseBody != null) successObj = responseBody.get("Success");
 
             if (Boolean.TRUE.equals(successObj)) {
-                request.setStatus(RequestStatus.APPROVED);
+                request.setStatus(RequestStatus.BONUS_APPROVED);
                 request.setTransactionId(UUID.randomUUID().toString());
                 requestRepository.save(request);
                 logger.info("✅ Platform transfer completed: chatId={}, userId={}, amount={}", request.getChatId(), userId, amount);
