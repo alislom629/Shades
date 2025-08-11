@@ -31,4 +31,8 @@ public class AdminCard {
     @ManyToOne
     @JoinColumn(name = "oson_config_id", nullable = false)
     private OsonConfig osonConfig;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_system", nullable = false)
+    private PaymentSystem paymentSystem;
 }

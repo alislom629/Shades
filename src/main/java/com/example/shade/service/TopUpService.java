@@ -50,6 +50,7 @@ public class TopUpService {
     private static final String PAYMENT_MESSAGE_KEY = "payment_message_id";
     private static final String PAYMENT_ATTEMPTS_KEY = "payment_attempts";
     private final BlockedUserRepository blockedUserRepository;
+    private final HumoService humoService;
 
     public void startTopUp(Long chatId) {
         logger.info("Starting top-up for chatId: {}", chatId);
@@ -403,7 +404,7 @@ public class TopUpService {
         sendPaymentInstruction(chatId);
     }
 
-    private void verifyPayment(Long chatId)  {
+    private void verifyPayment(Long chatId) {
         HizmatRequest request = requestRepository.findByChatIdAndStatus(chatId, RequestStatus.PENDING_PAYMENT)
                 .orElse(null);
         if (request == null) {
@@ -423,7 +424,8 @@ public class TopUpService {
 
         AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
                 .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
-        Map<String, Object> statusResponse=null;
+        Map<String, Object> statusResponse = null;
+        boolean response=false;
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
         long rubAmount =
@@ -431,9 +433,13 @@ public class TopUpService {
                         .multiply(latest.getUzsToRub())
                         .longValue() / 1000;
         try {
-            statusResponse= osonService.verifyPaymentByAmountAndCard(
-                    chatId, request.getPlatform(), request.getPlatformUserId(),
-                    request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
+            if (adminCard.getPaymentSystem().equals(PaymentSystem.UZCARD)) {
+                statusResponse = osonService.verifyPaymentByAmountAndCard(
+                        chatId, request.getPlatform(), request.getPlatformUserId(),
+                        request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
+            }else {
+             response=humoService.verifyPaymentAmount(request.getUniqueAmount());
+            }
         } catch (Exception e) {
             request.setStatus(RequestStatus.PENDING_SCREENSHOT);
             requestRepository.save(request);
@@ -471,14 +477,18 @@ public class TopUpService {
                     adminCard.getCardNumber(),
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
-            adminLogBotService.sendLog("Osonda Xatolik Yuz berdi ⚠\uFE0F \n\n"+logMessage);
+            adminLogBotService.sendLog("Osonda Xatolik Yuz berdi ⚠\uFE0F \n\n" + logMessage);
         }
 
+        boolean isPaymentReceived =response || (statusResponse !=null ? "SUCCESS".equals(statusResponse.get("status")):false);
 
-        if ("SUCCESS".equals(statusResponse.get("status"))) {
-            request.setTransactionId((String) statusResponse.get("transactionId"));
-            request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
-            request.setPayUrl((String) statusResponse.get("payUrl"));
+        if (isPaymentReceived) {
+            if (adminCard.getPaymentSystem().equals(PaymentSystem.UZCARD)) {
+                request.setTransactionId((String) statusResponse.get("transactionId"));
+                request.setBillId(Long.parseLong(String.valueOf(statusResponse.get("billId"))));
+                request.setPayUrl((String) statusResponse.get("payUrl"));
+            }
+
             request.setStatus(RequestStatus.APPROVED);
             requestRepository.save(request);
 
@@ -733,7 +743,7 @@ public class TopUpService {
                                 "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Kontorada qolgan limit: %,d %s\n\n" +
+                                "\uD83C\uDFE6: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
                         request.getChatId(), number,  // 🟢 Show chatId, link to phone number
@@ -883,7 +893,7 @@ public class TopUpService {
                                 "💳 Karta: `%s`\n" +
                                 "🔐 Admin kartasi: `%s`\n" +
                                 "🎟️ Chiptalar: %d\n\n" +
-                                "🎟 Kontorada qolgan limit: %,d %s\n\n" +
+                                "\uD83C\uDFE6: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
                         request.getChatId(), number,  // 🟢 Show chatId, link to phone number

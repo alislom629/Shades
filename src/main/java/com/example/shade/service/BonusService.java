@@ -642,28 +642,25 @@ public class BonusService {
                 sessionService.clearMessageIds(request.getChatId());
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
 
-                long tickets = request.getAmount() / 30_000;
-                if (tickets > 0) {
-                    lotteryService.awardTickets(request.getChatId(), tickets);
-                }
+
                 BalanceLimit cashdeskBalance = getCashdeskBalance(hash, cashierPass, cashdeskId);
                 if (cashdeskBalance==null){
-                    String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n\uD83D\uDC64 Foydalanuvchi: `%d` \n\uD83D\uDCDE %s \n\n 📅 [%s]",
+                    String message = String.format("🆔: %d #Bonus tasdiqlandi ✅ \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n\uD83D\uDC64 Foydalanuvchi: `%d` \n\uD83D\uDCDE %s \n\n 📅 [%s]",
                             request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
-                    String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
+                    String bonusMessage = String.format("🆔: %d #Bonus tasdiqlandi ✅ \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
                             request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
                     messageSender.sendMessage(request.getChatId(), bonusMessage);
 
                     adminLogBotService.sendToAdmins(message);
                 }else {
-                    String message = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n  🎟 Kontoraada qolgan limit: %,d %s \n\n 📅 [%s]",
+                    String message = String.format("🆔: %d #Bonus tasdiqlandi ✅\n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m\n Foydalanuvchi: `%d` \n \uD83D\uDCDE %s \n\n  🎟 Kontoraada qolgan limit: %,d %s \n\n 📅 [%s]",
                             request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), request.getChatId(),number, cashdeskBalance.getLimit().longValue(),platformData.getCurrency().toString(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
 
-                    String bonusMessage = String.format("✅ So‘rov tasdiqlandi \n\n🆔 So'rov ID : %d \n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
+                    String bonusMessage = String.format("🆔: %d #Bonus tasdiqlandi ✅\n\uD83C\uDF10 %s :  %s\n💰 Bonus: %,d so‘m \n\n 📅 [%s]",
                             request.getId(),  request.getPlatform(), request.getPlatformUserId(), request.getAmount(), LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
                     messageSender.sendMessage(request.getChatId(), bonusMessage);
