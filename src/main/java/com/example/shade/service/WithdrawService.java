@@ -240,7 +240,12 @@ public class WithdrawService {
             adminLogBotService.sendLog(logMessage);
             adminLogBotService.sendToAdmins("❌ So‘rov rad etildi: requestId " + requestId);
 
-            messageSender.sendMessage(chatId, "❌ Pul yechib olish so‘rovingiz rad etildi. Iltimos, qayta urinib ko‘ring.");
+            messageSender.sendMessage(chatId,
+                    "🆔:" + request.getId() + "❌ Pul yechib olish so'rovingiz rad etildi\n" +
+                            "💵 Sizga tushadi: " + request.getUniqueAmount() + "\n" +
+                            "🕓 Admin tasdiqini kuting."+ "\n\n" +
+                            "📅 [" + LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))+"]"
+            );
             sendMainMenu(chatId);
         }
         logger.info("Admin chatId {} {} withdraw requestId {}", adminChatId, approve ? "approved" : "rejected", requestId);
