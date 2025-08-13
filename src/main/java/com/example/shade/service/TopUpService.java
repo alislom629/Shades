@@ -438,7 +438,13 @@ public class TopUpService {
                         chatId, request.getPlatform(), request.getPlatformUserId(),
                         request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
             }else {
-             response=humoService.verifyPaymentAmount(request.getUniqueAmount());
+                try {
+                    Thread.sleep(2000); // 2-second delay
+                    response = humoService.verifyPaymentAmount(request.getUniqueAmount());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt(); // Restore interrupted status
+                    response = false; // Handle as needed
+                }
             }
         } catch (Exception e) {
             request.setStatus(RequestStatus.PENDING_SCREENSHOT);

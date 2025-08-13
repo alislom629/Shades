@@ -1,6 +1,7 @@
 package com.example.shade.bot;
 
 import com.example.shade.model.BlockedUser;
+import com.example.shade.repository.AdminChatRepository;
 import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.service.AdminLogBotService;
 import com.example.shade.service.BonusService;
@@ -30,6 +31,7 @@ import java.util.Random;
 public class AdminLogBot extends TelegramLongPollingBot {
     private static final Logger logger = LoggerFactory.getLogger(AdminLogBot.class);
     private final AdminLogBotService adminLogBotService;
+    private final AdminChatRepository adminChatRepository;
     private final AdminTelegramMessageSender adminTelegramMessageSender;
     private final WithdrawService withdrawService;
     private final BonusService bonusService;
@@ -111,7 +113,11 @@ public class AdminLogBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
         message.setReplyMarkup(createAdminMenuKeyboard());
-
+        if(!adminChatRepository.findById(chatId).isPresent()){
+            return;
+        }else if (!adminChatRepository.findById(chatId).get().isReceiveNotifications()){
+            return;
+        }
         if (messageText.startsWith("/ban ")) {
             try {
                 String[] parts = messageText.split(" ");
