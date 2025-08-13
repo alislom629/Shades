@@ -466,7 +466,7 @@ public class TopUpService {
             String logMessage = String.format(
                     "🆔: %d  \n" +
                             "👤: [%s] %s\n" +  // Clickable number with + sign
-                            "🌐 %s: " + "%s\n" +
+                            "🌐 #%s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta: `%s`\n" +
@@ -519,7 +519,7 @@ public class TopUpService {
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         "🆔: %d  To‘lov yakunlandi ✅\n" +
-                                "🌐 %s: " + "%s\n" +
+                                "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta: `%s`\n" +
@@ -540,7 +540,7 @@ public class TopUpService {
                 String logMessageAdmin = String.format(
                         "🆔: %d  To‘lov yakunlandi ✅\n" +
                                 "👤: [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n" +
+                                "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta: `%s`\n" +
@@ -614,7 +614,7 @@ public class TopUpService {
         String errorLogMessage = String.format(
                 " 🆔: %d Transfer xatosi ❌\n" +
                         "👤 User ID [%s] %s\n" +  // Clickable number with + sign
-                        "🌐 %s: " + "%s\n" +
+                        "🌐 #%s: " + "%s\n" +
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
                         "💳 Karta: `%s`\n" +
@@ -648,7 +648,7 @@ public class TopUpService {
                         "🆔 *ID:* `%d`\n" +
                         "📤 *Berish:* `%,d UZS`\n" +
                         "📥 *Olish:* `%,d UZS`\n" +
-                        "🌐 *%s:* `%s`\n" +
+                        "🌐 #*%s:* `%s`\n" +
                         "📅 *Sana:* `%s`\n\n" +
                         "⌛️ *Buyurtmangiz tekshiruvga yuborildi!* ",
                 request.getId(),
@@ -722,7 +722,7 @@ public class TopUpService {
                 String logMessage = String.format(
                         " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n" +
+                                "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta: `%s`\n" +
@@ -743,7 +743,7 @@ public class TopUpService {
                 String adminLogMessage = String.format(
                         " 🆔: %d To‘lov amalga oshirildi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n" +
+                                "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta: `%s`\n" +
@@ -779,7 +779,7 @@ public class TopUpService {
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
-                            "🌐 %s: " + "%s\n" +
+                            "🌐 #%s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta: `%s`\n" +
@@ -797,7 +797,7 @@ public class TopUpService {
             String adminMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
-                            "🌐 %s: " + "%s\n" +
+                            "🌐 #%s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta: `%s`\n" +
@@ -872,7 +872,7 @@ public class TopUpService {
                 String logMessage = String.format(
                         " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n" +
+                                "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta: `%s`\n" +
@@ -893,7 +893,7 @@ public class TopUpService {
                 String adminLogMessage = String.format(
                         " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
                                 "👤ID [%s] %s\n" +  // Clickable number with + sign
-                                "🌐 %s: " + "%s\n" +
+                                "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
                                 "💳 Karta: `%s`\n" +
@@ -929,7 +929,7 @@ public class TopUpService {
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
-                            "🌐 %s: " + "%s\n" +
+                            "🌐 #%s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta: `%s`\n" +
@@ -948,7 +948,7 @@ public class TopUpService {
             String adminMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
-                            "🌐 %s: " + "%s\n" +
+                            "🌐 #%s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
                             "💳 Karta: `%s`\n" +
