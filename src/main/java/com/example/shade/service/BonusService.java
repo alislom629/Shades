@@ -507,7 +507,7 @@ public class BonusService {
         request.setUniqueAmount(amount.longValue());
         request.setStatus(RequestStatus.PENDING_ADMIN);
         requestRepository.save(request);
-        String userMessage = String.format("⏳Bonus pul yechish so'rovi junatildi: \n\n So'rov ID: %d \n \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m  \n",
+        String userMessage = String.format("⏳Bonus pul yechish so'rovi junatildi: \n\n \uD83C\uDD94: %d \n \uD83C\uDF10 %s : %s\n💰 Summa: %,d so‘m  \n",
                 request.getId(), request.getPlatform(), request.getPlatformUserId(), request.getAmount());
         messageSender.sendMessage(chatId, userMessage);
 

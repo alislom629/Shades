@@ -228,17 +228,18 @@ public class WithdrawService {
             requestRepository.save(request);
 
             String logMessage = String.format(
-                    "Pul \n\n 📋 So'rov ID: %s  Pul yechib olish rad etildi ❌\n" +
+                    "Pul \n\n 📋 \uD83C\uDD94: %s  Pul yechib olish rad etildi ❌\n" +
                             "👤 User ID [%s] %s\n" +  // Clickable number with + sign
                             "🌐 %s: " + "%s\n"+
+                            "💵 Berish:"+ "%s\n"+
                             "💳 Karta: `%s`\n" +
                             "🔑 Kod: %s\n" +
                             "📅 [%s]",
                     request.getId(),chatId,number,
                      platform, userId,
+                    request.getUniqueAmount(),
                     cardNumber, code,  LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             adminLogBotService.sendLog(logMessage);
-            adminLogBotService.sendToAdmins("❌ So‘rov rad etildi: requestId " + requestId);
 
             messageSender.sendMessage(chatId,
                     "🆔:" + request.getId() + "❌ Pul yechib olish so'rovingiz rad etildi\n" +
