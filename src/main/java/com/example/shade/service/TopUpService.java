@@ -702,7 +702,7 @@ public class TopUpService {
 
             BalanceLimit transferSuccessful = transferToPlatform(request, adminCard);
             if (transferSuccessful != null) {
-                UserBalance balance = userBalanceRepository.findById(requestId)
+                UserBalance balance = userBalanceRepository.findById(request.getChatId())
                         .orElseGet(() -> {
                             UserBalance newBalance = UserBalance.builder()
                                     .chatId(request.getChatId())
