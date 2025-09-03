@@ -4,21 +4,15 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-@Entity
-@Table(name = "users")
 @Getter
 @Setter
+@Entity
+@Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     private Long chatId;
 
-    public User() {
-    }
-
-    public User(Long chatId) {
-        this.chatId = chatId;
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Language language;
 }

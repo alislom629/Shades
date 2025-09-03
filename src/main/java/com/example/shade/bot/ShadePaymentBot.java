@@ -1,11 +1,10 @@
 package com.example.shade.bot;
 
-import com.example.shade.model.BlockedUser;
-import com.example.shade.model.Referral;
-import com.example.shade.model.UserBalance;
+import com.example.shade.model.*;
 import com.example.shade.repository.BlockedUserRepository;
 import com.example.shade.repository.ReferralRepository;
 import com.example.shade.repository.UserBalanceRepository;
+import com.example.shade.repository.UserRepository;
 import com.example.shade.service.*;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +48,8 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private final AdminLogBotService adminLogBotService;
     private final UserBalanceRepository userBalanceRepository;
     private final FeatureService featureService;
+    private final LanguageSessionService languageSessionService;
+    private final UserRepository userRepository;
 
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -275,7 +276,12 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private void handleTextMessage(String messageText, Long chatId) {
         logger.info("Processing message from chatId {}: {}", chatId, messageText);
         String state = sessionService.getUserState(chatId);
-
+        if (!languageSessionService.checkUserUserSession(chatId)) {
+            Language userLanguage = userRepository.findByChatId(chatId)
+                    .map(User::getLanguage)
+                    .orElse(Language.UZ);
+            languageSessionService.addUserLanguageSession(chatId, userLanguage);
+        }
         if ("AWAITING_PHONE_NUMBER".equals(state)) {
             if (messageText.equals("🏠 Asosiy menyu")) {
                 BlockedUser user = blockedUserRepository.findById(chatId).orElse(null);
