@@ -137,7 +137,22 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 logger.info("Blocked user {} attempted to interact", chatId);
                 return;
             }
-
+            if (!languageSessionService.checkUserUserSession(chatId)) {
+                User userLanguage = userRepository.findByChatId(chatId).orElse(null);
+                if (userLanguage == null) {
+                    if (update.hasMessage() && update.getMessage().hasText() && update.getMessage().getText().equals("/start")) {
+                        sessionService.setUserState(chatId, "AWAITING_LANGUAGE");
+                        sendLanguageSelection(chatId);
+                        return;
+                    }
+                    if (update.hasCallbackQuery() && sessionService.getUserState(chatId).equals("AWAITING_LANGUAGE")) {
+                        handleLanguageSelection(update.getCallbackQuery().getData(), chatId);
+                        return;
+                    }
+                    return;
+                }
+                languageSessionService.addUserLanguageSession(chatId, userLanguage.getLanguage());
+            }
             // Handle phone number submission
             if (update.hasMessage() && update.getMessage().hasContact()) {
                 String receivedPhoneNumber = update.getMessage().getContact().getPhoneNumber();
@@ -156,7 +171,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
 
                 SendMessage removeKeyboardMessage = new SendMessage();
                 removeKeyboardMessage.setChatId(chatId);
-                removeKeyboardMessage.setText("Telefon raqamingiz qabul qilindi.");
+                removeKeyboardMessage.setText(languageSessionService.getTranslation(chatId, "message.phone_number_recieved"));
                 removeKeyboardMessage.setReplyMarkup(new ReplyKeyboardRemove(true));
                 messageSender.sendMessage(removeKeyboardMessage, chatId);
 
@@ -182,11 +197,11 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 String state = sessionService.getUserState(chatId);
                 if (!"TOPUP_AWAITING_SCREENSHOT".equals(state)) {
                     logger.warn("Photo received in wrong state for chatId {}: {}", chatId, state);
-                    messageSender.sendMessage(chatId, "Iltimos, avval to‘lov so‘rovini yakunlang.");
+                    messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.please_confirm_payment_transaction"));
                     return;
                 }
                 if (!featureService.canPerformTopUp()) {
-                    messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                    messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                     return;
                 }
                 PhotoSize photo = update.getMessage().getPhoto().get(update.getMessage().getPhoto().size() - 1);
@@ -194,8 +209,8 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     logger.error("Invalid photo file ID for chatId {}", chatId);
                     SendMessage message = new SendMessage();
                     message.setChatId(chatId);
-                    message.setText("Xatolik: Yuklangan rasm fayli noto‘g‘ri. Iltimos, qayta urinib ko‘ring.");
-                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    message.setText(languageSessionService.getTranslation(chatId, "message.invalid_photo_file"));
+                    message.setReplyMarkup(createBonusMenuKeyboard(chatId));
                     messageSender.sendMessage(message, chatId);
                     return;
                 }
@@ -207,20 +222,20 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     downloadedFile = downloadFile(file);
                     SendPhoto sendPhoto = new SendPhoto();
                     sendPhoto.setPhoto(new InputFile(downloadedFile));
-                    sendPhoto.setCaption("Screenshot from user: " + chatId);
+                    sendPhoto.setCaption("Screenshot from user: " + chatId); // Admin message, not translated
                     sendPhoto.setReplyMarkup(createScreenshotMarkup(chatId));
                     adminLogBotService.sendScreenshotRequest(sendPhoto, chatId);
                     SendMessage message = new SendMessage();
                     message.setChatId(chatId);
-                    message.setText("Rasm yuborildi. Admin tasdiqlashini kuting.");
-                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    message.setText(languageSessionService.getTranslation(chatId, "message.photo_sent_confirmation"));
+                    message.setReplyMarkup(createBonusMenuKeyboard(chatId));
                     messageSender.sendMessage(message, chatId);
                 } catch (TelegramApiException e) {
                     logger.error("Failed to process photo for chatId {}: {}", chatId, e.getMessage());
                     SendMessage message = new SendMessage();
                     message.setChatId(chatId);
-                    message.setText("Xatolik: Rasmni yuborishda xato yuz berdi. Iltimos, qayta urinib ko‘ring.");
-                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    message.setText(languageSessionService.getTranslation(chatId, "message.photo_processing_error"));
+                    message.setReplyMarkup(createBonusMenuKeyboard(chatId));
                     messageSender.sendMessage(message, chatId);
                 } finally {
                     if (downloadedFile != null && downloadedFile.exists()) {
@@ -242,19 +257,19 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private void sendPhoneNumberRequest(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Iltimos, telefon raqamingizni yuboring yoki menyuga o‘tish uchun quyidagi tugmani bosing:");
-        message.setReplyMarkup(createPhoneNumberKeyboard());
+        message.setText(languageSessionService.getTranslation(chatId, "message.phone_number_request"));
+        message.setReplyMarkup(createPhoneNumberKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
-    private ReplyKeyboardMarkup createPhoneNumberKeyboard() {
+    private ReplyKeyboardMarkup createPhoneNumberKeyboard(Long chatId) {
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         markup.setResizeKeyboard(true);
         markup.setOneTimeKeyboard(true);
         List<KeyboardRow> rows = new ArrayList<>();
         KeyboardRow row1 = new KeyboardRow();
         KeyboardButton contactButton = new KeyboardButton();
-        contactButton.setText("📞 Telefon raqamni yuborish");
+        contactButton.setText(languageSessionService.getTranslation(chatId, "button.phone_number_submit"));
         contactButton.setRequestContact(true);
         row1.add(contactButton);
         rows.add(row1);
@@ -276,12 +291,6 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
     private void handleTextMessage(String messageText, Long chatId) {
         logger.info("Processing message from chatId {}: {}", chatId, messageText);
         String state = sessionService.getUserState(chatId);
-        if (!languageSessionService.checkUserUserSession(chatId)) {
-            Language userLanguage = userRepository.findByChatId(chatId)
-                    .map(User::getLanguage)
-                    .orElse(Language.UZ);
-            languageSessionService.addUserLanguageSession(chatId, userLanguage);
-        }
         if ("AWAITING_PHONE_NUMBER".equals(state)) {
             if (messageText.equals("🏠 Asosiy menyu")) {
                 BlockedUser user = blockedUserRepository.findById(chatId).orElse(null);
@@ -289,12 +298,12 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                     sessionService.clearSession(chatId);
                     sendMainMenu(chatId, true);
                 } else {
-                    messageSender.sendMessage(chatId, "Iltimos, avval telefon raqamingizni yuboring.");
+                    messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.awaiting_phone_number"));
                     sendPhoneNumberRequest(chatId);
                 }
                 return;
             }
-            messageSender.sendMessage(chatId, "Iltimos, telefon raqamingizni yuborish uchun tugmani bosing yoki menyuga o‘tish uchun 'Asosiy menyu' ni tanlang.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.phone_number_prompt"));
             sendPhoneNumberRequest(chatId);
             return;
         }
@@ -302,21 +311,21 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
             sendMainMenu(chatId, true);
         } else if (messageText.equals("/topup")) {
             if (!featureService.canPerformTopUp()) {
-                messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                 return;
             }
             messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
             topUpService.startTopUp(chatId);
         } else if (messageText.equals("/withdraw")) {
             if (!featureService.canPerformWithdraw()) {
-                messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                 return;
             }
             messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
             withdrawService.startWithdrawal(chatId);
         } else if (messageText.equals("/bonus")) {
             if (!featureService.canPerformBonus()) {
-                messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                 return;
             }
             messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
@@ -328,7 +337,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         } else if (state != null && state.startsWith("BONUS_")) {
             bonusService.handleTextInput(chatId, messageText);
         } else {
-            messageSender.sendMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.invalid_command"));
             sendMainMenu(chatId, true);
         }
     }
@@ -339,7 +348,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
             switch (callback) {
                 case "TOPUP" -> {
                     if (!featureService.canPerformTopUp()) {
-                        messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                        messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                         return;
                     }
                     messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
@@ -347,7 +356,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 }
                 case "WITHDRAW" -> {
                     if (!featureService.canPerformWithdraw()) {
-                        messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                        messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                         return;
                     }
                     messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
@@ -355,7 +364,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 }
                 case "BONUS" -> {
                     if (!featureService.canPerformBonus()) {
-                        messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                        messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                         return;
                     }
                     messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
@@ -382,7 +391,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                 default -> {
                     if (callback.startsWith("TOPUP_")) {
                         if (!featureService.canPerformTopUp()) {
-                            messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                             return;
                         }
                         if (callback.equals("TOPUP_PAYMENT_CONFIRM")) {
@@ -396,27 +405,27 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
                         topUpService.handleCallback(chatId, callback);
                     } else if (callback.startsWith("WITHDRAW_")) {
                         if (!featureService.canPerformWithdraw()) {
-                            messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                             return;
                         }
                         messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
                         withdrawService.handleCallback(chatId, callback);
                     } else if (callback.startsWith("BONUS_")) {
                         if (!featureService.canPerformBonus()) {
-                            messageSender.sendMessage(chatId, "Iltimos, 5 daqiqadan so‘ng urinib kuring");
+                            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.feature_unavailable"));
                             return;
                         }
                         messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
                         bonusService.handleCallback(chatId, callback);
                     } else {
                         logger.warn("Unknown callback for chatId {}: {}", chatId, callback);
-                        messageSender.sendMessage(chatId, "Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
+                        messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.unknown_callback"));
                     }
                 }
             }
         } catch (Exception e) {
             logger.error("Error handling callback {} for chatId {}: {}", callback, chatId, e.getMessage());
-            messageSender.sendMessage(chatId, "Xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "message.callback_error"));
         }
     }
 
@@ -428,35 +437,77 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Xush kelibsiz! Operatsiyani tanlang:");
-        message.setReplyMarkup(createMainMenuKeyboard());
+        message.setText(languageSessionService.getTranslation(chatId, "message.main_menu_welcome"));
+        message.setReplyMarkup(createMainMenuKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
-    private InlineKeyboardMarkup createMainMenuKeyboard() {
+    private InlineKeyboardMarkup createMainMenuKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(List.of(createButton("🏦 Hisob To'ldirish", "TOPUP")));
-        rows.add(List.of(createButton("💸 Pul Chiqarish", "WITHDRAW")));
-        rows.add(List.of(createButton("🎁 Bonus", "BONUS")));
-        rows.add(List.of(createButton("ℹ️ Aloqa", "CONTACT")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "button.topup"), "TOPUP")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "button.withdraw"), "WITHDRAW")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "button.bonus"), "BONUS")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "button.contact"), "CONTACT")));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createBonusMenuKeyboard() {
+    private InlineKeyboardMarkup createBonusMenuKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private List<InlineKeyboardButton> createNavigationButtons() {
+    private List<InlineKeyboardButton> createNavigationButtons(Long chatId) {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(createButton("🔙 Orqaga", "BACK"));
-        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "button.back"), "BACK"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "button.home"), "HOME"));
         return buttons;
+    }
+
+    private void sendLanguageSelection(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Выберите язык / Tilni tanlang:");
+        message.setReplyMarkup(createLanguageKeyboard(chatId));
+        messageSender.sendMessage(message, chatId);
+    }
+
+    private InlineKeyboardMarkup createLanguageKeyboard(Long chatId) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        rows.add(List.of(
+                createButton(languageSessionService.getTranslation(chatId, "button.language_ru"), "LANG_RU"),
+                createButton(languageSessionService.getTranslation(chatId, "button.language_uz"), "LANG_UZ")
+        ));
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private void handleLanguageSelection(String callback, Long chatId) {
+        User user = userRepository.findByChatId(chatId).orElse(new User());
+        user.setChatId(chatId);
+        if ("LANG_RU".equals(callback)) {
+            user.setLanguage(Language.RU);
+        } else if ("LANG_UZ".equals(callback)) {
+            user.setLanguage(Language.UZ);
+        } else {
+            logger.warn("Invalid language callback for chatId {}: {}", chatId, callback);
+            return;
+        }
+        userRepository.save(user);
+        logger.info("Language set for chatId {}: {}", chatId, user.getLanguage());
+        sessionService.clearSession(chatId);
+
+        BlockedUser blockedUser = blockedUserRepository.findById(chatId).orElse(null);
+        if (blockedUser == null || blockedUser.getPhoneNumber() == null) {
+            sendPhoneNumberRequest(chatId);
+        } else {
+            sendMainMenu(chatId, true);
+        }
     }
 
     private InlineKeyboardButton createButton(String text, String callback) {

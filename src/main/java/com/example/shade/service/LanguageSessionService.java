@@ -3,9 +3,9 @@ package com.example.shade.service;
 import com.example.shade.model.Language;
 import com.example.shade.model.UserSession;
 import lombok.RequiredArgsConstructor;
-import org.jvnet.hk2.annotations.Service;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Component;
 
 import java.util.Locale;
 import java.util.Map;
@@ -30,16 +30,12 @@ public class LanguageSessionService {
     public String getTranslation(Long chatId, String textCode) {
         Language language = sessionStore.get(chatId);
         if (language == null) {
-            // Fallback to default language (e.g., English) if no session exists
-            return messageSource.getMessage(textCode, null, Locale.ENGLISH);
+            return messageSource.getMessage(textCode, null, new Locale("uz"));
         }
-
-        // Get locale from language code
         Locale locale = new Locale(language.getCode());
         try {
             return messageSource.getMessage(textCode, null, locale);
         } catch (Exception e) {
-            // Handle case where textCode is not found
             return "Translation not found for code: " + textCode;
         }
     }

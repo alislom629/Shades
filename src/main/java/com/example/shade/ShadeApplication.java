@@ -20,13 +20,6 @@ public class ShadeApplication {
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-    @Bean
-    public MessageSource messageSource() {
-        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
-        messageSource.setBasename("messages");
-        messageSource.setDefaultEncoding("UTF-8"); // <-- important
-        return messageSource;
-    }
 
 
 }
