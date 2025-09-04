@@ -45,6 +45,7 @@ public class LotteryService {
     private final BlockedUserRepository blockedUserRepository;
     private final MessageSender messageSender;
     private final AdminLogBotService adminLogBotService;
+    private final LanguageSessionService languageSessionService;
     private final Random random = new Random();
     private static final long MINIMUM_TICKETS = 36L;
     private static final long MAXIMUM_TICKETS = 400L;
@@ -56,7 +57,7 @@ public class LotteryService {
                         .tickets(0L)
                         .balance(BigDecimal.ZERO)
                         .build());
-        Long tickets = amount ;
+        Long tickets = amount;
         balance.setTickets(balance.getTickets() + tickets);
         userBalanceRepository.save(balance);
         logger.info("Awarded {} tickets to chatId {}", tickets, chatId);
@@ -98,7 +99,7 @@ public class LotteryService {
                 .collect(Collectors.toList());
         if (validPrizes.isEmpty()) {
             logger.error("No valid prizes with non-zero amount and available count for chatId {}.", chatId);
-            throw new IllegalStateException("Yaroqli lotereya sovrinlari mavjud emas");
+            throw new IllegalStateException(languageSessionService.getTranslation(chatId, "lottery.message.no_valid_prizes"));
         }
 
         Map<Long, BigDecimal> winnings = new HashMap<>();
@@ -146,8 +147,8 @@ public class LotteryService {
         balance.setTickets(balance.getTickets() - numberOfPlays);
         balance.setBalance(balance.getBalance().add(totalWinnings));
         userBalanceRepository.save(balance);
-        if (totalWinnings.longValue()>=20000){
-            lottoBotService.logWin(numberOfPlays,chatId,totalWinnings.longValue());
+        if (totalWinnings.longValue() >= 20000) {
+            lottoBotService.logWin(numberOfPlays, chatId, totalWinnings.longValue());
         }
         logger.info("Played {} tickets for chatId {}, won {} times with total {} UZS", numberOfPlays, chatId, winnings.size(), totalWinnings);
         return winnings;
@@ -166,7 +167,7 @@ public class LotteryService {
                 .collect(Collectors.toList());
         if (validPrizes.isEmpty()) {
             logger.error("No valid prizes with non-zero amount and available count for chatId {}.", chatId);
-            throw new IllegalStateException("Yaroqli lotereya sovrinlari mavjud emas");
+            throw new IllegalStateException(languageSessionService.getTranslation(chatId, "lottery.message.no_valid_prizes"));
         }
 
         Map<Long, BigDecimal> winnings = new HashMap<>();
@@ -225,7 +226,7 @@ public class LotteryService {
 
         // Fetch last 'totalUsers' approved requests, ordered by creation time, with limit in query
         Pageable pageable = PageRequest.of(0, totalUsers.intValue(), Sort.by(Sort.Direction.DESC, "createdAt"));
-        List<HizmatRequest> requests = hizmatRequestRepository.findByFilters( RequestStatus .APPROVED, pageable);
+        List<HizmatRequest> requests = hizmatRequestRepository.findByFilters(RequestStatus.APPROVED, pageable);
 
         if (requests.size() < randomUsers) {
             throw new IllegalStateException("Not enough approved users: requested=" + randomUsers + ", available=" + requests.size());
@@ -258,12 +259,7 @@ public class LotteryService {
             balance.setBalance(balance.getBalance().add(awardAmount));
             userBalanceRepository.save(balance);
             String messageText = String.format(
-                    "\uD83D\uDD25Kunlik bonus\uD83D\uDD25\n" +
-                            "\n" +
-                            "Omadli o‘yinchini tabriklaymiz.\n" +
-                            "Siz tasodifiy tanlov orqali %s so‘m bonus yutib oldingiz. Bonus botdagi balansingizga qo‘shildi.\n\n" +
-                            "💸 Yangi balans: %s so‘m\n" +
-                            "📅 [%s]",
+                    languageSessionService.getTranslation(chatId, "lottery.message.award_notification"),
                     amount, balance.getBalance().longValue(),
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
@@ -272,19 +268,20 @@ public class LotteryService {
             message.setChatId(chatId);
             message.setText(messageText);
             message.setReplyMarkup(backButtonKeyboard());
-            messageSender.sendMessage(message,chatId);
+            messageSender.sendMessage(message, chatId);
             String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
             adminLogBotService.sendToAdmins("#Кунлик бонусда голиб болганлар\n\n" +
-                    "Kunlik bonus: " +amount+" \n"+
-                    "Balans: " +balance.getBalance().longValue() + "\n" +
-                    "User ID: " +chatId + "\n" +
-                    "Telefon nomer:" +number+ "\n\n" +
-                    "\uD83D\uDCC5 "+LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    "Kunlik bonus: " + amount + " \n" +
+                    "Balans: " + balance.getBalance().longValue() + "\n" +
+                    "User ID: " + chatId + "\n" +
+                    "Telefon nomer:" + number + "\n\n" +
+                    "\uD83D\uDCC5 " + LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
             logger.info("Awarded {} UZS to chatId {}", amount, chatId);
         }
     }
+
     private InlineKeyboardMarkup backButtonKeyboard() {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
@@ -292,12 +289,14 @@ public class LotteryService {
         markup.setKeyboard(rows);
         return markup;
     }
+
     private List<InlineKeyboardButton> createNavigationButtons() {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(createButton("🔙 Orqaga", "BACK"));
-        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        buttons.add(createButton(languageSessionService.getTranslation(null, "lottery.button.back"), "BACK"));
+        buttons.add(createButton(languageSessionService.getTranslation(null, "lottery.button.home"), "HOME"));
         return buttons;
     }
+
     private InlineKeyboardButton createButton(String text, String callback) {
         InlineKeyboardButton button = new InlineKeyboardButton();
         button.setText(text);

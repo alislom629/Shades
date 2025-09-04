@@ -18,19 +18,13 @@ public class LottoBotService {
     private static final Logger logger = LoggerFactory.getLogger(LottoBotService.class);
     private final AdminChatRepository adminChatRepository;
     private final LottoMessageSender messageSender;
-
-    private static final List<String> CONGRATULATIONS_MESSAGES = List.of(
-            "Tabriklar! Siz katta yutuqqa erishdingiz! 🎉",
-            "Ajoyib! Sizning yutug'ingiz ajoyib! 🏆",
-            "Wow, katta yutuq! Tabriklar! 🎊",
-            "Siz yutdingiz! Ajoyib natija! ✨"
-    );
-
+    private final LanguageSessionService languageSessionService;
     private static final Random RANDOM = new Random();
 
-    public LottoBotService(AdminChatRepository adminChatRepository, LottoMessageSender messageSender) {
+    public LottoBotService(AdminChatRepository adminChatRepository, LottoMessageSender messageSender, LanguageSessionService languageSessionService) {
         this.adminChatRepository = adminChatRepository;
         this.messageSender = messageSender;
+        this.languageSessionService = languageSessionService;
     }
 
     public void logWin(long numberOfTickets, Long userId, Long amount) {
@@ -39,25 +33,15 @@ public class LottoBotService {
             return;
         }
 
+        String maskedUserId = userId.toString().length() >= 7
+                ? userId.toString().substring(0, 3).concat("***").concat(userId.toString().substring(6))
+                : userId.toString();
+        String date = LocalDateTime.now(ZoneId.of("GMT+5"))
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         String logMessage = String.format(
-                "Tanlangan %s ta bilet va ularning qiymati:  \n\n" +
-                        "\uD83C\uDF81 Bonus Miqdori: %,d\uD83D\uDCB0 \n" +
-                        "\uD83D\uDC64 User Id:  `%s` \n" +
-                        "\uD83D\uDCC5 Date:  %s \n" +
-                        "\uD83D\uDCB0  %s",
-                numberOfTickets,
-                amount, // ✅ must be numeric
-                userId.toString().length() >= 7
-                        ? userId.toString().substring(0, 3).concat("***").concat(userId.toString().substring(6))
-                        : userId.toString(),
-                LocalDateTime.now(ZoneId.of("GMT+5"))
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                getRandomCongratulations() + "\n\n" +
-                        "Avtobot: @xonpeybot\n" +
-                        "Admin: @Boss9w\n" +
-                        "Chat: @Abadiy_kassa"
+                languageSessionService.getTranslation(userId, "lotto.message.win_log"),
+                numberOfTickets, amount, maskedUserId, date, getRandomCongratulations(userId)
         );
-
 
         List<AdminChat> adminChats = adminChatRepository.findByReceiveNotificationsTrue();
         if (adminChats.isEmpty()) {
@@ -71,7 +55,9 @@ public class LottoBotService {
         }
     }
 
-    private String getRandomCongratulations() {
-        return CONGRATULATIONS_MESSAGES.get(RANDOM.nextInt(CONGRATULATIONS_MESSAGES.size()));
+    private String getRandomCongratulations(Long chatId) {
+        int index = RANDOM.nextInt(4) + 1; // Random index from 1 to 4
+        String translationKey = "lotto.congratulations." + index;
+        return languageSessionService.getTranslation(chatId, translationKey);
     }
 }

@@ -14,36 +14,36 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ContactService {
     private final MessageSender messageSender;
+    private final LanguageSessionService languageSessionService;
 
     public void handleContact(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("📞 Bog‘lanish uchun quyidagi tugmalardan foydalaning:");
-        message.setReplyMarkup(createContactKeyboard());
+        message.setText(languageSessionService.getTranslation(chatId, "contact.message.contact_prompt"));
+        message.setReplyMarkup(createContactKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
-    private InlineKeyboardMarkup createContactKeyboard() {
+    private InlineKeyboardMarkup createContactKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-        // 1 - Admin tugmasi
-        rows.add(List.of(createButton("👤 Admin", "https://t.me/Boss9w")));
+        // 1 - Admin button
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "contact.button.admin"), "https://t.me/Boss9w")));
 
-        // 2 - Chat tugmasi
-        rows.add(List.of(createButton("💬 Chat", "https://t.me/Abadiy_Kassa"))); // replace with actual group/chat link
-        rows.add(createNavigationButtons());
+        // 2 - Chat button
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "contact.button.chat"), "https://t.me/Abadiy_Kassa")));
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private List<InlineKeyboardButton> createNavigationButtons() {
+    private List<InlineKeyboardButton> createNavigationButtons(Long chatId) {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(createButton("🔙 Orqaga", "BACK"));
-        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "contact.button.back"), "BACK"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "contact.button.home"), "HOME"));
         return buttons;
     }
-
 
     private InlineKeyboardButton createButton(String text, String callbackOrUrl) {
         InlineKeyboardButton button = new InlineKeyboardButton();
