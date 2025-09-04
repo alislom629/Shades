@@ -267,7 +267,7 @@ public class LotteryService {
             SendMessage message = new SendMessage();
             message.setChatId(chatId);
             message.setText(messageText);
-            message.setReplyMarkup(backButtonKeyboard());
+            message.setReplyMarkup(backButtonKeyboard(chatId));
             messageSender.sendMessage(message, chatId);
             String number = blockedUserRepository.findByChatId(chatId).get().getPhoneNumber();
 
@@ -282,18 +282,18 @@ public class LotteryService {
         }
     }
 
-    private InlineKeyboardMarkup backButtonKeyboard() {
+    private InlineKeyboardMarkup backButtonKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private List<InlineKeyboardButton> createNavigationButtons() {
+    private List<InlineKeyboardButton> createNavigationButtons(Long chatId) {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(createButton(languageSessionService.getTranslation(null, "lottery.button.back"), "BACK"));
-        buttons.add(createButton(languageSessionService.getTranslation(null, "lottery.button.home"), "HOME"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "lottery.button.back"), "BACK"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "lottery.button.home"), "HOME"));
         return buttons;
     }
 

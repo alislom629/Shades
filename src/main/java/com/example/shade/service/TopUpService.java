@@ -51,6 +51,7 @@ public class TopUpService {
     private static final String PAYMENT_ATTEMPTS_KEY = "payment_attempts";
     private final BlockedUserRepository blockedUserRepository;
     private final HumoService humoService;
+    private final LanguageSessionService languageSessionService;
 
     public void startTopUp(Long chatId) {
         logger.info("Starting top-up for chatId: {}", chatId);
@@ -72,7 +73,7 @@ public class TopUpService {
             case "TOPUP_CARD_INPUT" -> handleCardInput(chatId, text);
             case "TOPUP_AMOUNT_INPUT" -> handleAmountInput(chatId, text);
             case "TOPUP_PAYMENT_CONFIRM" -> handlePaymentConfirmation(chatId, text);
-            default -> backMenuMessage(chatId, "Iltimos, menyudan operatsiyani tanlang.");
+            default -> backMenuMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.select_from_menu"));
         }
     }
 
@@ -80,7 +81,7 @@ public class TopUpService {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(messageText);
-        message.setReplyMarkup(createNavigationKeyboard());
+        message.setReplyMarkup(createNavigationKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
@@ -124,7 +125,7 @@ public class TopUpService {
             case "TOPUP_PAYMENT_CONFIRM" -> verifyPayment(chatId);
             case "TOPUP_SEND_SCREENSHOT" -> {
                 sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
-                messageSender.sendMessage(chatId, "Iltimos, to‘lov chekining skrinshotini yuboring.");
+                messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.send_screenshot"));
             }
             default -> {
                 if (callback.startsWith("TOPUP_PLATFORM:")) {
@@ -145,18 +146,18 @@ public class TopUpService {
                     logger.warn("Unknown callback for chatId {}: {}", chatId, callback);
                     SendMessage message = new SendMessage();
                     message.setChatId(chatId);
-                    message.setText("Noto‘g‘ri buyruq. Iltimos, qayta urinib ko‘ring.");
-                    message.setReplyMarkup(createBonusMenuKeyboard());
+                    message.setText(languageSessionService.getTranslation(chatId, "topup.message.invalid_command"));
+                    message.setReplyMarkup(createBonusMenuKeyboard(chatId));
                     messageSender.sendMessage(message, chatId);
                 }
             }
         }
     }
 
-    private InlineKeyboardMarkup createBonusMenuKeyboard() {
+    private InlineKeyboardMarkup createBonusMenuKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
@@ -205,7 +206,7 @@ public class TopUpService {
 
         if (!isValidUserId(userId)) {
             logger.warn("Invalid user ID format for chatId {}: {}", chatId, userId);
-            sendMessageWithNavigation(chatId, "Noto‘g‘ri ID formati. Iltimos, faqat raqamlardan iborat ID kiriting:");
+            sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.invalid_user_id"));
             return;
         }
         validateUserId(chatId, userId);
@@ -225,8 +226,8 @@ public class TopUpService {
                     platformName, hash, cashierPass, cashdeskId);
             SendMessage message = new SendMessage();
             message.setChatId(chatId);
-            message.setText("Platform sozlamalarida xato. Administrator bilan bog‘laning.");
-            message.setReplyMarkup(createBonusMenuKeyboard());
+            message.setText(languageSessionService.getTranslation(chatId, "topup.message.platform_credentials_error"));
+            message.setReplyMarkup(createBonusMenuKeyboard(chatId));
             messageSender.sendMessage(message, chatId);
             return;
         }
@@ -287,14 +288,14 @@ public class TopUpService {
         } catch (HttpClientErrorException e) {
             logger.error("API error for user ID {} on platform {}: {}", userId, platformName, e.getMessage());
             String errorMessage = e.getStatusCode().value() == 401 ?
-                    "Authentication failed: Invalid credentials or signature" :
+                    languageSessionService.getTranslation(chatId, "topup.message.auth_failed") :
                     e.getStatusCode().value() == 403 ?
-                            "Invalid confirm parameter. Please check user ID and platform credentials." :
-                            "API error occurred";
+                            languageSessionService.getTranslation(chatId, "topup.message.invalid_confirm") :
+                            languageSessionService.getTranslation(chatId, "topup.message.generic_api_error");
             sendMessageWithNavigation(chatId, errorMessage + ". Please try again.");
         } catch (Exception e) {
             logger.error("Error calling API for user ID {} on platform {}: {}", userId, platformName, e.getMessage());
-            sendMessageWithNavigation(chatId, "API xatosi yuz berdi. Iltimos, qayta urinib ko‘ring.");
+            sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.api_error"));
         }
     }
 
@@ -304,7 +305,7 @@ public class TopUpService {
         String fullName = sessionService.getUserData(chatId, "fullName");
         if (fullName == null) {
             logger.error("FullName is null for chatId {}", chatId);
-            messageSender.sendMessage(chatId, "Xatolik: Foydalanuvchi ma'lumotlari topilmadi. Qayta urinib ko‘ring.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.user_data_not_found"));
             sessionService.setUserState(chatId, "TOPUP_USER_ID_INPUT");
             sendUserIdInput(chatId, sessionService.getUserData(chatId, "platform"));
         } else {
@@ -318,7 +319,7 @@ public class TopUpService {
 
         if (!isValidCard(card)) {
             logger.warn("Invalid card format for chatId {}: {}", chatId, card);
-            sendMessageWithNavigation(chatId, "Noto‘g‘ri karta formati. 16 raqamli UZCARD raqamini kiriting:");
+            sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.invalid_card_format"));
             return;
         }
         String cardNumber = card.replaceAll("\\s+", "");
@@ -344,7 +345,7 @@ public class TopUpService {
         try {
             long amount = Long.parseLong(amountText.replaceAll("[^\\d]", ""));
             if (amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
-                sendMessageWithNavigation(chatId, "Summa 10 000 dan 10 000 000 gacha bo‘lishi kerak! Qayta kiriting:");
+                sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.invalid_amount_range"));
                 return;
             }
             sessionService.setUserData(chatId, "amount", String.valueOf(amount));
@@ -353,18 +354,18 @@ public class TopUpService {
             initiateTopUpRequest(chatId);
         } catch (NumberFormatException e) {
             logger.warn("Invalid amount format for chatId {}: {}", chatId, amountText);
-            sendMessageWithNavigation(chatId, "Iltimos, to‘g‘ri summa kiriting (faqat raqamlar):");
+            sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.invalid_amount_format"));
         }
     }
 
     private void handlePaymentConfirmation(Long chatId, String text) {
-        sendMessageWithNavigation(chatId, "Iltimos, to‘lovni tasdiqlash uchun 'Tasdiqlash' tugmasini bosing.");
+        sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.confirm_payment"));
     }
 
     private void initiateTopUpRequest(Long chatId) {
         if (sessionService.getUserData(chatId, "platformUserId") == null) {
             logger.error("No validated user ID for chatId {}", chatId);
-            messageSender.sendMessage(chatId, "Foydalanuvchi tasdiqlanmagan. Iltimos, ID ni qayta kiriting.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.user_not_validated"));
             sessionService.setUserState(chatId, "TOPUP_USER_ID_INPUT");
             sendUserIdInput(chatId, sessionService.getUserData(chatId, "platform"));
             return;
@@ -382,7 +383,7 @@ public class TopUpService {
                 chatId, platformName, sessionService.getUserData(chatId, "platformUserId")).orElse(null);
         if (request == null) {
             logger.error("No pending request found for chatId {}, platform: {}, userId: {}", chatId, platformName, sessionService.getUserData(chatId, "platformUserId"));
-            messageSender.sendMessage(chatId, "Xatolik: So‘rov topilmadi. Qayta urinib ko‘ring.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.request_not_found"));
             sendMainMenu(chatId);
             return;
         }
@@ -411,7 +412,7 @@ public class TopUpService {
             logger.error("No pending payment request found for chatId {}", chatId);
             messageSender.animateAndDeleteMessages(chatId, sessionService.getMessageIds(chatId), "OPEN");
             sessionService.clearMessageIds(chatId);
-            messageSender.sendMessage(chatId, "Xatolik: So‘rov topilmadi. Iltimos, qayta urinib ko‘ring.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.request_not_found"));
             sendMainMenu(chatId);
             return;
         }
@@ -425,7 +426,7 @@ public class TopUpService {
         AdminCard adminCard = adminCardRepository.findById(request.getAdminCardId())
                 .orElseThrow(() -> new IllegalStateException("Admin card not found: " + request.getAdminCardId()));
         Map<String, Object> statusResponse = null;
-        boolean response=false;
+        boolean response = false;
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
         long rubAmount =
@@ -437,7 +438,7 @@ public class TopUpService {
                 statusResponse = osonService.verifyPaymentByAmountAndCard(
                         chatId, request.getPlatform(), request.getPlatformUserId(),
                         request.getAmount(), request.getCardNumber(), adminCard.getCardNumber(), request.getUniqueAmount());
-            }else {
+            } else {
                 try {
                     Thread.sleep(2000); // 2-second delay
                     response = humoService.verifyPaymentAmount(request.getUniqueAmount());
@@ -451,11 +452,11 @@ public class TopUpService {
             requestRepository.save(request);
             SendMessage message = new SendMessage();
             message.setChatId(chatId);
-            message.setText("To‘lov hali qabul qilinmadi. Iltimos, to‘lov chekining skrinshotini yuboring.");
+            message.setText(languageSessionService.getTranslation(chatId, "topup.message.send_screenshot"));
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
 
             List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-            rows.add(createNavigationButtons());
+            rows.add(createNavigationButtons(chatId));
             markup.setKeyboard(rows);
             message.setReplyMarkup(markup);
             messageSender.sendMessage(message, chatId);
@@ -465,7 +466,7 @@ public class TopUpService {
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
                     "🆔: %d  \n" +
-                            "👤: [%s] %s\n" +  // Clickable number with + sign
+                            "👤: [%s] %s\n" +
                             "🌐 #%s: " + "%s\n" +
                             "💸 Miqdor: %,d UZS\n" +
                             "💸 Miqdor: %,d RUB\n" +
@@ -486,7 +487,7 @@ public class TopUpService {
             adminLogBotService.sendLog("Osonda Xatolik Yuz berdi ⚠\uFE0F \n\n" + logMessage);
         }
 
-        boolean isPaymentReceived =response || (statusResponse !=null ? "SUCCESS".equals(statusResponse.get("status")):false);
+        boolean isPaymentReceived = response || (statusResponse != null ? "SUCCESS".equals(statusResponse.get("status")) : false);
 
         if (isPaymentReceived) {
             if (adminCard.getPaymentSystem().equals(PaymentSystem.UZCARD)) {
@@ -539,7 +540,7 @@ public class TopUpService {
 
                 String logMessageAdmin = String.format(
                         "🆔: %d  To‘lov yakunlandi ✅\n" +
-                                "👤: [%s] %s\n" +  // Clickable number with + sign
+                                "👤: [%s] %s\n" +
                                 "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
@@ -568,7 +569,7 @@ public class TopUpService {
                 sessionService.clearMessageIds(chatId);
                 sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
                 messageSender.sendMessage(chatId, logMessage +
-                        (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
+                        (tickets > 0 ? String.format(languageSessionService.getTranslation(chatId, "topup.message.tickets_received"), tickets) : ""));
                 sendMainMenu(chatId);
             } else {
                 handleTransferFailure(chatId, request, adminCard);
@@ -582,18 +583,18 @@ public class TopUpService {
                 requestRepository.save(request);
                 SendMessage message = new SendMessage();
                 message.setChatId(chatId);
-                message.setText("To‘lov hali qabul qilinmadi. Iltimos, to‘lov chekining skrinshotini yuboring.");
+                message.setText(languageSessionService.getTranslation(chatId, "topup.message.send_screenshot"));
                 InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
 
                 List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-                rows.add(createNavigationButtons());
+                rows.add(createNavigationButtons(chatId));
                 markup.setKeyboard(rows);
                 message.setReplyMarkup(markup);
                 messageSender.sendMessage(message, chatId);
 
                 sessionService.setUserState(chatId, "TOPUP_AWAITING_SCREENSHOT");
             } else {
-                messageSender.sendMessage(chatId, "To‘lov hali qabul qilinmadi. Iltimos, biroz kuting va yana 'Tasdiqlash' tugmasini bosing.");
+                messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.payment_not_received"));
                 sendPaymentInstruction(chatId);
             }
         }
@@ -602,10 +603,6 @@ public class TopUpService {
     private void handleTransferFailure(Long chatId, HizmatRequest request, AdminCard adminCard) {
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-//        long amount = request.getCurrency().equals(Currency.RUB) ?
-//                BigDecimal.valueOf(request.getUniqueAmount())
-//                        .multiply(latest.getUzsToRub())
-//                        .longValue() / 1000 : request.getUniqueAmount();
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
@@ -613,7 +610,7 @@ public class TopUpService {
         String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
         String errorLogMessage = String.format(
                 " 🆔: %d Transfer xatosi ❌\n" +
-                        "👤 User ID [%s] %s\n" +  // Clickable number with + sign
+                        "👤 User ID [%s] %s\n" +
                         "🌐 #%s: " + "%s\n" +
                         "💸 Miqdor: %,d UZS\n" +
                         "💸 Miqdor: %,d RUB\n" +
@@ -621,7 +618,7 @@ public class TopUpService {
                         "🔐 Admin kartasi: `%s`\n" +
                         "📅 [%s] ",
                 request.getId(),
-                request.getChatId(), number,  // ✅ chatId as label, phone number as link
+                request.getChatId(), number,
                 request.getPlatform(),
                 request.getPlatformUserId(),
                 request.getUniqueAmount(),
@@ -631,12 +628,11 @@ public class TopUpService {
                 LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
 
-
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
-                createButton("✅ Qabul qilish", "SCREENSHOT_APPROVE:" + request.getId()),
-                createButton("❌ Rad etish", "SCREENSHOT_REJECT:" + request.getId())
+                createButton(languageSessionService.getTranslation(chatId, "topup.button.accept"), "SCREENSHOT_APPROVE:" + request.getId()),
+                createButton(languageSessionService.getTranslation(chatId, "topup.button.reject"), "SCREENSHOT_REJECT:" + request.getId())
         ));
         markup.setKeyboard(rows);
 
@@ -644,16 +640,10 @@ public class TopUpService {
         SendMessage message = new SendMessage();
         message.setChatId(request.getChatId());
         String messageText = String.format(
-                "✳️ *Sizning almashuv buyurtmangiz:*\n\n" +
-                        "🆔 *ID:* `%d`\n" +
-                        "📤 *Berish:* `%,d UZS`\n" +
-                        "📥 *Olish:* `%,d UZS`\n" +
-                        "🌐 #*%s:* `%s`\n" +
-                        "📅 *Sana:* `%s`\n\n" +
-                        "⌛️ *Buyurtmangiz tekshiruvga yuborildi!* ",
+                languageSessionService.getTranslation(chatId, "topup.message.transfer_failure"),
                 request.getId(),
                 request.getUniqueAmount(),
-                request.getUniqueAmount(), // If different, change accordingly
+                request.getUniqueAmount(),
                 request.getPlatform(),
                 escapeMarkdown(request.getPlatformUserId()),
                 LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"))
@@ -661,7 +651,7 @@ public class TopUpService {
 
         message.setText(messageText);
         message.enableMarkdown(true);
-        message.setReplyMarkup(createBonusMenuKeyboard());
+        message.setReplyMarkup(createBonusMenuKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
@@ -687,10 +677,6 @@ public class TopUpService {
 
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-//        long amount = request.getCurrency().equals(Currency.RUB) ?
-//                BigDecimal.valueOf(request.getUniqueAmount())
-//                        .multiply(latest.getUzsToRub())
-//                        .longValue() / 1000 : request.getUniqueAmount();
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
@@ -721,7 +707,7 @@ public class TopUpService {
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
-                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                                "👤ID [%s] %s\n" +
                                 "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
@@ -730,7 +716,7 @@ public class TopUpService {
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
-                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getChatId(), number,
                         request.getPlatform(),
                         request.getPlatformUserId(),
                         request.getUniqueAmount(),
@@ -741,8 +727,8 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
                 String adminLogMessage = String.format(
-                        " 🆔: %d To‘lov amalga oshirildi ✅\n" +
-                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                        " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
+                                "👤ID [%s] %s\n" +
                                 "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
@@ -752,7 +738,7 @@ public class TopUpService {
                                 "\uD83C\uDFE6: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
-                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getChatId(), number,
                         request.getPlatform(),
                         request.getPlatformUserId(),
                         request.getUniqueAmount(),
@@ -765,10 +751,9 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
-
                 adminLogBotService.sendLog(adminLogMessage);
                 messageSender.sendMessage(requestId, logMessage +
-                        (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
+                        (tickets > 0 ? String.format(languageSessionService.getTranslation(requestId, "topup.message.tickets_received"), tickets) : ""));
             } else {
                 handleTransferFailure(requestId, request, adminCard);
             }
@@ -778,13 +763,7 @@ public class TopUpService {
 
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
-                    "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
-                            "🌐 #%s: " + "%s\n" +
-                            "💸 Miqdor: %,d UZS\n" +
-                            "💸 Miqdor: %,d RUB\n" +
-                            "💳 Karta: `%s`\n" +
-                            "🔐 Admin kartasi: `%s`\n" +
-                            "📅 [%s] ",
+                    languageSessionService.getTranslation(requestId, "topup.message.screenshot_rejected"),
                     request.getId(),
                     request.getPlatform(),
                     request.getPlatformUserId(),
@@ -804,7 +783,7 @@ public class TopUpService {
                             "💳 Bizniki: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
-                    request.getChatId(), number,  // chatId as label, phone as target
+                    request.getChatId(), number,
                     request.getPlatform(),
                     request.getPlatformUserId(),
                     request.getUniqueAmount(),
@@ -837,10 +816,6 @@ public class TopUpService {
 
         ExchangeRate latest = exchangeRateRepository.findLatest()
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
-//        long amount = request.getCurrency().equals(Currency.RUB) ?
-//                BigDecimal.valueOf(request.getUniqueAmount())
-//                        .multiply(latest.getUzsToRub())
-//                        .longValue() / 1000 : request.getUniqueAmount();
         long rubAmount =
                 BigDecimal.valueOf(request.getUniqueAmount())
                         .multiply(latest.getUzsToRub())
@@ -871,7 +846,7 @@ public class TopUpService {
                 String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
                 String logMessage = String.format(
                         " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
-                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                                "👤ID [%s] %s\n" +
                                 "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
@@ -880,7 +855,7 @@ public class TopUpService {
                                 "🎟️ Chiptalar: %d\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
-                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getChatId(), number,
                         request.getPlatform(),
                         request.getPlatformUserId(),
                         request.getUniqueAmount(),
@@ -892,7 +867,7 @@ public class TopUpService {
                 );
                 String adminLogMessage = String.format(
                         " 🆔: %d To‘lov skrinshoti tasdiqlandi ✅\n" +
-                                "👤ID [%s] %s\n" +  // Clickable number with + sign
+                                "👤ID [%s] %s\n" +
                                 "🌐 #%s: " + "%s\n" +
                                 "💸 Miqdor: %,d UZS\n" +
                                 "💸 Miqdor: %,d RUB\n" +
@@ -902,7 +877,7 @@ public class TopUpService {
                                 "\uD83C\uDFE6: %,d %s\n\n" +
                                 "📅 [%s] ",
                         request.getId(),
-                        request.getChatId(), number,  // 🟢 Show chatId, link to phone number
+                        request.getChatId(), number,
                         request.getPlatform(),
                         request.getPlatformUserId(),
                         request.getUniqueAmount(),
@@ -915,10 +890,9 @@ public class TopUpService {
                         LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
-
                 adminLogBotService.sendLog(adminLogMessage);
                 messageSender.sendMessage(requestId, logMessage +
-                        (tickets > 0 ? " Siz " + tickets + " ta lotereya chiptasi oldingiz!" : ""));
+                        (tickets > 0 ? String.format(languageSessionService.getTranslation(requestId, "topup.message.tickets_received"), tickets) : ""));
             } else {
                 handleTransferFailure(requestId, request, adminCard);
             }
@@ -928,13 +902,7 @@ public class TopUpService {
 
             String number = blockedUserRepository.findByChatId(request.getChatId()).get().getPhoneNumber();
             String logMessage = String.format(
-                    "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
-                            "🌐 #%s: " + "%s\n" +
-                            "💸 Miqdor: %,d UZS\n" +
-                            "💸 Miqdor: %,d RUB\n" +
-                            "💳 Karta: `%s`\n" +
-                            "🔐 Admin kartasi: `%s`\n" +
-                            "📅 [%s] ",
+                    languageSessionService.getTranslation(requestId, "topup.message.screenshot_rejected"),
                     request.getId(),
                     request.getPlatform(),
                     request.getPlatformUserId(),
@@ -944,7 +912,6 @@ public class TopUpService {
                     adminCard.getCardNumber(),
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
-
             String adminMessage = String.format(
                     "🆔: %d To‘lov skrinshoti rad etildi ❌\n" +
                             "👤ID [%s] %s\n" +
@@ -955,7 +922,7 @@ public class TopUpService {
                             "💳 Bizniki: `%s`\n" +
                             "📅 [%s] ",
                     request.getId(),
-                    request.getChatId(), number,  // chatId as label, phone as target
+                    request.getChatId(), number,
                     request.getPlatform(),
                     request.getPlatformUserId(),
                     request.getUniqueAmount(),
@@ -964,6 +931,7 @@ public class TopUpService {
                     adminCard.getCardNumber(),
                     LocalDateTime.now(ZoneId.of("GMT+5")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             );
+
             adminLogBotService.sendLog(adminMessage);
             messageSender.sendMessage(requestId, logMessage);
         }
@@ -1028,7 +996,7 @@ public class TopUpService {
                 hash.isEmpty() || cashierPass.isEmpty() || cashdeskId.isEmpty()) {
             logger.error("Invalid platform credentials for platform {}: hash={}, cashierPass={}, cashdeskId={}",
                     platformName, hash, cashierPass, cashdeskId);
-            messageSender.sendMessage(request.getChatId(), "Platform sozlamalarida xato. Administrator bilan bog‘laning.");
+            messageSender.sendMessage(request.getChatId(), languageSessionService.getTranslation(request.getChatId(), "topup.message.platform_credentials_error"));
             return null;
         }
 
@@ -1071,21 +1039,20 @@ public class TopUpService {
 
             String errorMsg = responseBody != null && responseBody.get("Message") != null
                     ? responseBody.get("Message").toString()
-                    : "Platformdan noto‘g‘ri javob qaytdi.";
-
+                    : languageSessionService.getTranslation(request.getChatId(), "topup.message.transfer_error_default");
             logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", request.getChatId(), userId, responseBody);
-//            messageSender.sendMessage(request.getChatId(), "❌ Transfer xatosi: " + errorMsg);
             adminLogBotService.sendToAdmins("❌ Transfer xatosi: " + errorMsg);
+            messageSender.sendMessage(request.getChatId(), String.format(languageSessionService.getTranslation(request.getChatId(), "topup.message.transfer_error"), errorMsg));
             return null;
 
         } catch (HttpClientErrorException e) {
             logger.error("API error for transfer, chatId {}, userId {}: {}", request.getChatId(), userId, e.getMessage());
-            messageSender.sendMessage(request.getChatId(), "API xatosi: Auth yoki sign noto‘g‘ri.");
+            messageSender.sendMessage(request.getChatId(), languageSessionService.getTranslation(request.getChatId(), "topup.message.api_auth_error"));
             return null;
 
         } catch (Exception e) {
             logger.error("Unexpected error during transfer for chatId {}: {}", request.getChatId(), e.getMessage());
-            messageSender.sendMessage(request.getChatId(), "Noma’lum xatolik. Qayta urinib ko‘ring.");
+            messageSender.sendMessage(request.getChatId(), languageSessionService.getTranslation(request.getChatId(), "topup.message.unknown_error"));
             return null;
         }
     }
@@ -1101,10 +1068,9 @@ public class TopUpService {
                 .orElseThrow(() -> new RuntimeException("No exchange rate found in the database"));
 
         String messageText;
-        String sanitizedCardNumber = adminCard.getCardNumber().replaceAll("\\s+", ""); // Remove all spaces
-
-// Escape card number for Markdown
+        String sanitizedCardNumber = adminCard.getCardNumber().replaceAll("\\s+", "");
         String escapedCardNumber = sanitizedCardNumber.replace("_", "\\_").replace("-", "\\-");
+        String buttonKey = attempts >= 2 ? "topup.button.send_screenshot" : "topup.button.confirm";
 
         if (request.getCurrency().equals(Currency.RUB)) {
             long amount = BigDecimal.valueOf(request.getUniqueAmount())
@@ -1112,42 +1078,25 @@ public class TopUpService {
                     .longValue() / 1000;
 
             messageText = String.format(
-                    "*Diqqat!* Aniq *%,d UZS* o‘tkazing, bu sizning summangizdan farq qiladi!\n\n" +
-                            "❌ *BUNI O‘TKAZMANG:* %,d UZS\n" +
-                            "✅ *BUNI O‘TKAZING:* %,d UZS\n\n" +
-                            "*Karta:* `%s`\n" +
-                            "💱 *1000 UZS → %s RUB* kursida\n" +
-                            "💰 Sizga *%s RUB* tushadi\n\n" +
-                            "⚠\uFE0F To‘lovni amalga oshirgach, 15 daqiqa ichida *'%s'* tugmasini bosing!\n" +
-                            "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
-                            "⌛️ Agar to‘lov darhol amalga oshmasa, kuting va yana tugmani bosing.\n" +
-                            "`TG_ID: %d #%d`",
+                    languageSessionService.getTranslation(chatId, "topup.message.payment_instruction_rub"),
                     request.getUniqueAmount(),
                     request.getAmount(), request.getUniqueAmount(), escapedCardNumber,
                     latest.getUzsToRub(), amount,
-                    attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
+                    languageSessionService.getTranslation(chatId, buttonKey), chatId, request.getId());
         } else {
             messageText = String.format(
-                    "*Diqqat!* Aniq *%,d UZS* o‘tkazing, bu sizning summangizdan farq qiladi!\n\n" +
-                            "❌ *BUNI O‘TKAZMANG:* %,d UZS\n" +
-                            "✅ *BUNI O‘TKAZING:* %,d UZS\n\n" +
-                            "*Karta:* `%s`\n" +
-                            "⚠\uFE0F To‘lovni amalga oshirgach, 15 daqiqa ichida *'%s'* tugmasini bosing!\n" +
-                            "⛔️ Agar xato summa o‘tkazsangiz, pul 15 ish kuni ichida qaytariladi yoki yo‘qoladi!\n\n" +
-                            "⌛️ Agar to‘lov darhol amalga oshmasa, kuting va yana tugmani bosing.\n" +
-                            "`TG_ID: %d #%d`",
+                    languageSessionService.getTranslation(chatId, "topup.message.payment_instruction_uzs"),
                     request.getUniqueAmount(),
                     request.getAmount(), request.getUniqueAmount(), escapedCardNumber,
-                    attempts >= 2 ? "Skrinshot yuborish" : "Tasdiqlash", chatId, request.getId());
+                    languageSessionService.getTranslation(chatId, buttonKey), chatId, request.getId());
         }
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(messageText);
-        message.enableMarkdown(true); // Markdown v1
-        message.setReplyMarkup(createPaymentConfirmKeyboard(attempts));
+        message.enableMarkdown(true);
+        message.setReplyMarkup(createPaymentConfirmKeyboard(attempts,chatId));
         messageSender.sendMessage(message, chatId);
-
 
         List<Integer> messageIds = sessionService.getMessageIds(chatId);
         Integer messageId = messageIds.isEmpty() ? null : messageIds.get(messageIds.size() - 1);
@@ -1155,7 +1104,7 @@ public class TopUpService {
             sessionService.setUserData(chatId, PAYMENT_MESSAGE_KEY, String.valueOf(messageId));
         } else {
             logger.error("Failed to retrieve messageId for chatId {}", chatId);
-            messageSender.sendMessage(chatId, "Xatolik: Xabar ID si topilmadi. Iltimos, qayta urinib ko‘ring.");
+            messageSender.sendMessage(chatId, languageSessionService.getTranslation(chatId, "topup.message.message_id_error"));
         }
     }
 
@@ -1168,8 +1117,8 @@ public class TopUpService {
     private void sendPlatformSelection(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Kontorani tanlang:");
-        message.setReplyMarkup(createPlatformKeyboard());
+        message.setText(languageSessionService.getTranslation(chatId, "topup.message.select_platform"));
+        message.setReplyMarkup(createPlatformKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
@@ -1180,11 +1129,11 @@ public class TopUpService {
         if (!recentRequests.isEmpty()) {
             HizmatRequest latestRequest = recentRequests.get(0);
             sessionService.setUserData(chatId, "platformUserId", latestRequest.getPlatformUserId());
-            message.setText("Pastagi ID larni birini ishlatishingiz mumkin yoki yangi ID kiriting:");
-            message.setReplyMarkup(createSavedIdKeyboard(recentRequests));
+            message.setText(languageSessionService.getTranslation(chatId, "topup.message.enter_user_id_with_history"));
+            message.setReplyMarkup(createSavedIdKeyboard(recentRequests,chatId));
         } else {
-            message.setText("Iltimos, " + platform + " uchun ID kiriting:");
-            message.setReplyMarkup(createNavigationKeyboard());
+            message.setText(String.format(languageSessionService.getTranslation(chatId, "topup.message.enter_user_id"), platform));
+            message.setReplyMarkup(createNavigationKeyboard(chatId));
         }
         messageSender.sendMessage(message, chatId);
     }
@@ -1192,13 +1141,13 @@ public class TopUpService {
     private void sendUserApproval(Long chatId, String fullName, String userId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText(String.format("Foydalanuvchi ma'lumotlari:\n\n👤 F.I.O: %s\n🆔 ID: %s\n\nBu ma'lumotlar to‘g‘rimi?", fullName, userId));
-        message.setReplyMarkup(createApprovalKeyboard());
+        message.setText(String.format(languageSessionService.getTranslation(chatId, "topup.message.user_approval"), fullName, userId));
+        message.setReplyMarkup(createApprovalKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
     private void sendNoUserFound(Long chatId) {
-        sendMessageWithNavigation(chatId, "Bu ID bo‘yicha foydalanuvchi topilmadi. Iltimos, boshqa ID kiriting:");
+        sendMessageWithNavigation(chatId, languageSessionService.getTranslation(chatId, "topup.message.no_user_found"));
     }
 
     private void sendCardInput(Long chatId, String fullName) {
@@ -1208,11 +1157,11 @@ public class TopUpService {
         if (!recentRequests.isEmpty() && recentRequests.get(0).getCardNumber() != null) {
             HizmatRequest latestRequest = recentRequests.get(0);
             sessionService.setUserData(chatId, "cardNumber", latestRequest.getCardNumber());
-            message.setText("Pastagi kartalarni birini ishlatishingiz mumkin yoki yangi karta raqamini kiriting:");
-            message.setReplyMarkup(createSavedCardKeyboard(recentRequests));
+            message.setText(languageSessionService.getTranslation(chatId, "topup.message.enter_card_with_history"));
+            message.setReplyMarkup(createSavedCardKeyboard(recentRequests,chatId));
         } else {
-            message.setText("F.I.O: " + fullName + "\nKarta raqamini kiriting (8600xxxxxxxxxxxx):");
-            message.setReplyMarkup(createNavigationKeyboard());
+            message.setText(String.format(languageSessionService.getTranslation(chatId, "topup.message.enter_card"), fullName));
+            message.setReplyMarkup(createNavigationKeyboard(chatId));
         }
         messageSender.sendMessage(message, chatId);
     }
@@ -1220,8 +1169,8 @@ public class TopUpService {
     private void sendAmountInput(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Summani kiriting (10 000 - 10 000 000 so‘m):");
-        message.setReplyMarkup(createAmountKeyboard());
+        message.setText(languageSessionService.getTranslation(chatId, "topup.message.enter_amount"));
+        message.setReplyMarkup(createAmountKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
@@ -1231,8 +1180,8 @@ public class TopUpService {
         sessionService.setUserData(chatId, PAYMENT_ATTEMPTS_KEY, "0");
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Xush kelibsiz! Operatsiyani tanlang:");
-        message.setReplyMarkup(createMainMenuKeyboard());
+        message.setText(languageSessionService.getTranslation(chatId, "topup.message.welcome"));
+        message.setReplyMarkup(createMainMenuKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
@@ -1240,11 +1189,11 @@ public class TopUpService {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
-        message.setReplyMarkup(createNavigationKeyboard());
+        message.setReplyMarkup(createNavigationKeyboard(chatId));
         messageSender.sendMessage(message, chatId);
     }
 
-    private InlineKeyboardMarkup createPlatformKeyboard() {
+    private InlineKeyboardMarkup createPlatformKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         List<Platform> uzsPlatforms = platformRepository.findByCurrency(Currency.UZS);
@@ -1255,28 +1204,28 @@ public class TopUpService {
             List<InlineKeyboardButton> row = new ArrayList<>();
             if (i < uzsPlatforms.size()) {
                 Platform uzsPlatform = uzsPlatforms.get(i);
-                row.add(createButton("🇺🇿 " + uzsPlatform.getName(), "TOPUP_PLATFORM:" + uzsPlatform.getName()));
+                row.add(createButton(String.format(languageSessionService.getTranslation(chatId, "topup.button.platform_uzs"), uzsPlatform.getName()), "TOPUP_PLATFORM:" + uzsPlatform.getName()));
             }
             if (i < rubPlatforms.size()) {
                 Platform rubPlatform = rubPlatforms.get(i);
-                row.add(createButton("🇷🇺 " + rubPlatform.getName(), "TOPUP_PLATFORM:" + rubPlatform.getName()));
+                row.add(createButton(String.format(languageSessionService.getTranslation(chatId, "topup.button.platform_rub"), rubPlatform.getName()), "TOPUP_PLATFORM:" + rubPlatform.getName()));
             } else {
                 i++;
                 if (i < uzsPlatforms.size() && i < maxRows) {
                     Platform uzsPlatform = uzsPlatforms.get(i);
-                    row.add(createButton("🇺🇿 " + uzsPlatform.getName(), "TOPUP_PLATFORM:" + uzsPlatform.getName()));
+                    row.add(createButton(String.format(languageSessionService.getTranslation(chatId, "topup.button.platform_uzs"), uzsPlatform.getName()), "TOPUP_PLATFORM:" + uzsPlatform.getName()));
                 }
             }
             if (!row.isEmpty()) {
                 rows.add(row);
             }
         }
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createSavedIdKeyboard(List<HizmatRequest> recentRequests) {
+    private InlineKeyboardMarkup createSavedIdKeyboard(List<HizmatRequest> recentRequests,Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         if (!recentRequests.isEmpty()) {
@@ -1284,18 +1233,18 @@ public class TopUpService {
                     .map(HizmatRequest::getPlatformUserId)
                     .distinct()
                     .limit(2)
-                    .map(id -> createButton("ID: " + id, "TOPUP_PAST_ID:" + id))
+                    .map(id -> createButton(String.format(languageSessionService.getTranslation(chatId, "topup.button.saved_id"), id), "TOPUP_PAST_ID:" + id))
                     .collect(Collectors.toList());
             if (!pastIdButtons.isEmpty()) {
                 rows.add(pastIdButtons);
             }
         }
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createSavedCardKeyboard(List<HizmatRequest> recentRequests) {
+    private InlineKeyboardMarkup createSavedCardKeyboard(List<HizmatRequest> recentRequests,Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
@@ -1308,83 +1257,75 @@ public class TopUpService {
                     .collect(Collectors.toList());
 
             for (String card : distinctCards) {
-                InlineKeyboardButton button = createButton(card, "TOPUP_PAST_CARD:" + card);
+                InlineKeyboardButton button = createButton(String.format(languageSessionService.getTranslation(chatId, "topup.button.saved_card"), card), "TOPUP_PAST_CARD:" + card);
                 rows.add(Collections.singletonList(button));
             }
         }
 
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createApprovalKeyboard() {
+    private InlineKeyboardMarkup createApprovalKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
-                createButton("✅ To‘g‘ri", "TOPUP_APPROVE_USER"),
-                createButton("❌ Noto‘g‘ri", "TOPUP_REJECT_USER")
+                createButton(languageSessionService.getTranslation(chatId, "topup.button.correct"), "TOPUP_APPROVE_USER"),
+                createButton(languageSessionService.getTranslation(chatId, "topup.button.incorrect"), "TOPUP_REJECT_USER")
         ));
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createAmountKeyboard() {
+    private InlineKeyboardMarkup createAmountKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
-                createButton("10,000 so‘m", "TOPUP_AMOUNT_10000"),
-                createButton("10,000,000 so‘m", "TOPUP_AMOUNT_10000000")
+                createButton(languageSessionService.getTranslation(chatId, "topup.button.amount_10000"), "TOPUP_AMOUNT_10000"),
+                createButton(languageSessionService.getTranslation(chatId, "topup.button.amount_10000000"), "TOPUP_AMOUNT_10000000")
         ));
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createConfirmKeyboard() {
-        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(List.of(createButton("✅ To‘ldirish", "TOPUP_CONFIRM")));
-        rows.add(createNavigationButtons());
-        markup.setKeyboard(rows);
-        return markup;
-    }
 
-    private InlineKeyboardMarkup createPaymentConfirmKeyboard(int attempts) {
+    private InlineKeyboardMarkup createPaymentConfirmKeyboard(int attempts,Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        String buttonText = attempts >= 2 ? "📷 Skrinshot yuborish" : "✅ Tasdiqlash";
+        String buttonKey = attempts >= 2 ? "topup.button.send_screenshot" : "topup.button.confirm";
         String callbackData = attempts >= 2 ? "TOPUP_SEND_SCREENSHOT" : "TOPUP_PAYMENT_CONFIRM";
-        rows.add(List.of(createButton(buttonText, callbackData)));
-        rows.add(createNavigationButtons());
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, buttonKey), callbackData)));
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createNavigationKeyboard() {
+    private InlineKeyboardMarkup createNavigationKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(createNavigationButtons());
+        rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private InlineKeyboardMarkup createMainMenuKeyboard() {
+    private InlineKeyboardMarkup createMainMenuKeyboard(Long chatId) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        rows.add(List.of(createButton("🏦 Hisob To'ldirish", "TOPUP")));
-        rows.add(List.of(createButton("💸 Pul Chiqarish", "WITHDRAW")));
-        rows.add(List.of(createButton("🎁 Bonus", "BONUS")));
-        rows.add(List.of(createButton("ℹ️ Aloqa", "CONTACT")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "topup.button.topup_account"), "TOPUP")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "topup.button.withdraw"), "WITHDRAW")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "topup.button.bonus"), "BONUS")));
+        rows.add(List.of(createButton(languageSessionService.getTranslation(chatId, "topup.button.contact"), "CONTACT")));
         markup.setKeyboard(rows);
         return markup;
     }
 
-    private List<InlineKeyboardButton> createNavigationButtons() {
+    private List<InlineKeyboardButton> createNavigationButtons(Long chatId) {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        buttons.add(createButton("🔙 Orqaga", "BACK"));
-        buttons.add(createButton("🏠 Bosh sahifa", "HOME"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "topup.button.back"), "BACK"));
+        buttons.add(createButton(languageSessionService.getTranslation(chatId, "topup.button.home"), "HOME"));
         return buttons;
     }
 
@@ -1403,11 +1344,6 @@ public class TopUpService {
         return card.replaceAll("\\s+", "").matches("\\d{16}");
     }
 
-    String maskCard(String card) {
-        String cleanCard = card.replaceAll("\\s+", "");
-        if (cleanCard.length() != 16) return "INVALID CARD";
-        return cleanCard.substring(0, 4) + " **** **** " + cleanCard.substring(12);
-    }
 
     private String sha256Hex(String input) {
         try {

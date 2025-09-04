@@ -501,6 +501,7 @@ public class ShadePaymentBot extends TelegramLongPollingBot {
         userRepository.save(user);
         logger.info("Language set for chatId {}: {}", chatId, user.getLanguage());
         sessionService.clearSession(chatId);
+        languageSessionService.addUserLanguageSession(chatId, user.getLanguage());
 
         BlockedUser blockedUser = blockedUserRepository.findById(chatId).orElse(null);
         if (blockedUser == null || blockedUser.getPhoneNumber() == null) {
