@@ -960,8 +960,8 @@ public class BonusService {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         rows.add(List.of(
-                createButton(languageSessionService.getTranslation(chatId, "button.amount_10000"), "BONUS_TOPUP_AMOUNT_10000"),
-                createButton(languageSessionService.getTranslation(chatId, "button.amount_100000"), "BONUS_TOPUP_AMOUNT_100000")
+                createButton("10,000", "BONUS_TOPUP_AMOUNT_10000"),
+                createButton("100,000", "BONUS_TOPUP_AMOUNT_100000")
         ));
         rows.add(createNavigationButtons(chatId));
         markup.setKeyboard(rows);
