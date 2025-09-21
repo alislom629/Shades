@@ -1042,7 +1042,7 @@ public class TopUpService {
                     : languageSessionService.getTranslation(request.getChatId(), "topup.message.transfer_error_default");
             logger.error("❌ Transfer failed for chatId {}, userId: {}, response: {}", request.getChatId(), userId, responseBody);
             adminLogBotService.sendToAdmins("❌ Transfer xatosi: " + errorMsg);
-            messageSender.sendMessage(request.getChatId(), String.format(languageSessionService.getTranslation(request.getChatId(), "topup.message.transfer_error"), errorMsg));
+//            messageSender.sendMessage(request.getChatId(), String.format(languageSessionService.getTranslation(request.getChatId(), "topup.message.transfer_error"), errorMsg));
             return null;
 
         } catch (HttpClientErrorException e) {
